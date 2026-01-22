@@ -29,13 +29,15 @@ const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-3 text-lg',
   }
   
+  const { onAnimationStart, onAnimationEnd, onDrag, onDragStart, onDragEnd, ...buttonProps } = props
+  
   return (
     <motion.button
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      aria-label={props['aria-label'] || (typeof children === 'string' ? children : undefined)}
-      {...props}
+      aria-label={buttonProps['aria-label'] || (typeof children === 'string' ? children : undefined)}
+      {...buttonProps}
     >
       {children}
     </motion.button>

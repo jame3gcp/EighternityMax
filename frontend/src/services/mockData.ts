@@ -73,7 +73,7 @@ class MockDataService {
   getInterpretation(phaseId: number): Interpretation {
     const phase = PHASE_NAMES[phaseId] || PHASE_NAMES[0]
     const nextPhaseId = (phaseId + 1) % PHASE_NAMES.length
-    const nextPhase = PHASE_NAMES[nextPhaseId]
+    const nextPhaseName = PHASE_NAMES[nextPhaseId]
 
     return {
       phaseId,
@@ -88,8 +88,8 @@ class MockDataService {
         '과도한 스트레스 피하기',
         '충분한 수분 섭취',
       ],
-      nextPhase,
-      nextPhaseId,
+      nextPhase: nextPhaseId,
+      nextPhaseName,
     }
   }
 

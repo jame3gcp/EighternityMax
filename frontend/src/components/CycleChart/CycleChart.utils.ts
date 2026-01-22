@@ -30,7 +30,8 @@ export function calculateArcPath(
     .startAngle(startAngle)
     .endAngle(endAngle)
 
-  return arc() || ''
+  const path = arc(null)
+  return path || ''
 }
 
 export function calculatePhaseAngles(phaseCount: number): Array<{ start: number; end: number }> {
