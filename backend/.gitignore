@@ -1,0 +1,4 @@
+node_modules/
+mock-data/data.json
+.env
+*.log
