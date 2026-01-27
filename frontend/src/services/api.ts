@@ -14,6 +14,8 @@ import type {
   MonthlyReport,
 } from '@/types'
 import { mockDataService } from './mockData'
+import { supabase as supabaseClient } from './supabase'
+import type { Provider } from '@supabase/supabase-js'
 
 // API Base URL 설정
 // - 개발 환경: localhost 또는 환경 변수 값
@@ -37,6 +39,17 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl()
 const V1_API_BASE = API_BASE_URL ? `${API_BASE_URL}/v1` : '/v1'
+
+// 디버깅: API 설정 정보 로깅 (개발 환경에서만)
+if (import.meta.env.DEV) {
+  console.log('[API Config]', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    PROD: import.meta.env.PROD,
+    MODE: import.meta.env.MODE,
+    API_BASE_URL,
+    V1_API_BASE,
+  })
+}
 
 const isMockMode = import.meta.env.VITE_USE_MOCK === 'true'
 
@@ -84,7 +97,20 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${accessToken}`
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const url = `${this.baseUrl}${endpoint}`
+    
+    // 디버깅: API 호출 정보 로깅 (개발 환경에서만)
+    if (import.meta.env.DEV) {
+      console.log('[API Request]', {
+        method: options?.method || 'GET',
+        url,
+        baseUrl: this.baseUrl,
+        endpoint,
+        hasToken: !!accessToken,
+      })
+    }
+
+    const response = await fetch(url, {
       ...options,
       headers,
       credentials: 'include',
@@ -313,9 +339,6 @@ class ReportApi {
     return client.get<MonthlyReport>(`/users/me/reports/monthly${query}`)
   }
 }
-
-import { supabase as supabaseClient } from './supabase'
-import type { Provider } from '@supabase/supabase-js'
 
 class AuthApi {
   async signInWithOAuth(provider: 'kakao' | 'google' | 'facebook' | 'apple') {
