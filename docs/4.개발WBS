@@ -1,0 +1,203 @@
+# ⑤ 개발 WBS (기능 단위 작업 분해 + 의존성) — 연속 배포(DevOps) 기준
+
+원칙
+- 배포 단위 = 사용자 가치 단위(“쓸 수 있는 기능”)
+- 모든 신규 기능은 Feature Flag로 감싼다
+- API → UI 순으로 붙이되, UI는 Skeleton 상태로 먼저 배포 가능
+
+---
+
+## 0. 공통 선행 작업 (모든 단계 공통 / 0주차)
+
+### 인프라/DevOps
+- [D0-1] Repo/브랜치 전략, 코드 규칙, PR 템플릿
+- [D0-2] CI: lint/test/build (FE/BE) + SAST(선택)
+- [D0-3] CD: dev/stage/prod 환경 분리 + 자동 배포 파이프라인
+- [D0-4] 환경변수/Secret 관리(예: Vault/Secrets Manager)
+- [D0-5] Feature Flag 시스템(서버/클라이언트 공통)
+- [D0-6] 로깅/모니터링/알람(APM, Error tracking) 기본 세팅
+- [D0-7] API 문서화(Swagger/OpenAPI) + 버저닝 규칙
+
+### 데이터/보안
+- [D0-8] DB 스키마 초안(user, profile, life_profile, jobs, daily_log, forecast 캐시 등)
+- [D0-9] 개인정보 마스킹/보관 정책(로그, 백업 포함)
+- [D0-10] Rate limit / Abuse protection(특히 AI 호출)
+
+의존성: 없음(최우선)
+
+---
+
+## STEP 1. Go-Live 최소 가치(로그인→분석→오늘 확인) (Feature Flag: `FF_CORE_V1`)
+
+### 백엔드
+- [B1-1] OAuth Provider 연동(최소 1~2개: Kakao/Google)
+- [B1-2] JWT(access/refresh) 발급/갱신/로그아웃
+- [B1-3] `POST /users/me/profile` (생년월일시/성별 저장)
+- [B1-4] AI Job 큐/상태 모델(`jobs`) + `POST /life-profile/generate`
+- [B1-5] AI 응답 정제 파이프라인(JSON schema validation + 길이 제한 + 안전 필터)
+- [B1-6] `GET /users/me/life-profile` 조회
+- [B1-7] `GET /daily-guide` (기본 템플릿 + profile 기반)
+- [B1-8] 공통 응답 포맷/에러 코드 표준화
+
+### 프론트엔드(반응형)
+- [F1-1] OAuth 로그인 UI/콜백 처리 + 세션 유지
+- [F1-2] 온보딩(기본정보 입력 1스크린) + 유효성 검사
+- [F1-3] 분석 생성 로딩 화면(job polling)
+- [F1-4] Home v1 (요약 카드 + CTA)
+- [F1-5] 데일리 가이드 v1 (텍스트 중심)
+- [F1-6] Skeleton/Empty/Error 상태 UI(필수)
+
+### QA/운영
+- [Q1-1] E2E: 로그인→프로필→분석→Home 렌더
+- [Q1-2] 장애/재시도 정책: AI 실패 시 안내/재요청
+- [O1-1] KPI 이벤트(분석 완료율, 첫 가이드 조회)
+
+의존성:
+- B1-4~B1-7은 D0-10(레이트리밋) 권장
+- F1-3은 B1-4/5/6 필요
+
+배포 산출물:
+- “가입 후 3분 내 첫 가치 체험” 가능
+
+---
+
+## STEP 2. 사용 습관 형성(기록→보정→사이클/예보) (Feature Flag: `FF_DAILY_LOOP_V1`)
+
+### 백엔드
+- [B2-1] `POST /daily-log` 저장(오늘 상태)
+- [B2-2] 기록 기반 보정 규칙(energy_index -15~+10 제한)
+- [B2-3] `GET /daily-guide`가 기록 반영해 변형되도록 로직 연결
+- [B2-4] `GET /energy-forecast?days=30` (캐시/프리컴퓨트 옵션)
+- [B2-5] 사이클 데이터 제공(7일/30일 포인트 반환) — forecast 재사용 가능
+
+### 프론트엔드
+- [F2-1] 오늘 기록 입력 UI(슬라이더/칩) + 저장
+- [F2-2] 저장 후 가이드 재조회/리프레시 UX
+- [F2-3] 나의 사이클 v1 (7일/30일 간단 차트: SVG 라인)
+- [F2-4] 30일 예보 v1 (그래프 + 날짜 탭 상세)
+- [F2-5] 기록 CTA(푸시가 아니어도 Home에서 유도)
+
+### QA/운영
+- [Q2-1] 기록 저장 후 가이드 문구 변경 여부 테스트
+- [O2-1] KPI: 기록률, D1/D7 리텐션, 예보 클릭률
+
+의존성:
+- B2-1이 B2-2/3의 전제
+- F2-3/4는 B2-4/5 필요
+
+---
+
+## STEP 3. 생활 의사결정 핵심(방향 가이드 6종) (Feature Flag: `FF_DIRECTIONS_V1`)
+
+### 백엔드
+- [B3-1] `GET /directions?date=` (love/money/career/health/move/connect)
+- [B3-2] 카테고리별 템플릿 + profile/forecast/log 매핑 규칙 구현
+- [B3-3] explanation(근거 1~2문장) 생성 규칙 + 단정 표현 완화
+- [B3-4] 날짜 클릭 시 해당 날짜 directions 요약 응답 지원(캐시 옵션)
+
+### 프론트엔드
+- [F3-1] Directions 탭 UI(6 카테고리)
+- [F3-2] 오늘/이번주(또는 이번 달) 섹션 UI
+- [F3-3] 사이클/예보 화면에서 날짜 클릭 → directions 요약 툴팁/패널 연동
+- [F3-4] 공유 카드(선택, 텍스트 기반) v1
+
+### QA/운영
+- [Q3-1] 카테고리별 문구 금칙어/단정 표현 점검
+- [O3-1] KPI: directions 진입률, 카테고리 탭 사용 분포
+
+의존성:
+- B3-1은 STEP1/2 데이터(프로필/예보/기록)가 있으면 품질↑ (없어도 fallback 가능)
+
+---
+
+## STEP 4. 위치 기반 확장(에너지 스팟 지도) (Feature Flag: `FF_SPOTS_MAP_V1`)
+
+### 백엔드
+- [B4-1] 지도 Provider 선정 및 Place Search 연동(키/쿼터/요금 정책)
+- [B4-2] `GET /spots?lat&lng&purpose&radius` 구현
+- [B4-3] 스코어링(목적 적합도 + 이동부담 패널티 + 개인화 보너스(선택))
+- [B4-4] 운영시간/휴무 필터(가능 시), 최소 “영업중 우선” 옵션
+- [B4-5] 즐겨찾기(선택) `POST/DELETE /spots/favorites`
+
+### 프론트엔드
+- [F4-1] 지도 화면(모바일 우선: 풀스크린 + 하단 카드 캐러셀)
+- [F4-2] 위치 권한 처리(거부 시 수동 검색/지역 입력)
+- [F4-3] 목적 필터 칩(focus/rest/meet)
+- [F4-4] 핀 클릭 → 상세 모달(추천 이유/길찾기)
+- [F4-5] 성능 최적화(마커 클러스터/지연 로딩)
+
+### QA/운영
+- [Q4-1] 권한 거부/오프라인/저정확 위치 테스트
+- [O4-1] KPI: 지도 진입률, 길찾기 클릭률
+
+의존성:
+- 지도 기능은 STEP1만 있어도 구동 가능하나, phase_tag 연동은 STEP2/3 있으면 가치↑
+
+---
+
+## STEP 5. 리텐션/엔터(행운 번호 + 미니게임 1종) (Feature Flag: `FF_LUCKY_V1`, `FF_GAME_V1`)
+
+### 백엔드
+- [B5-1] `GET /lucky-numbers` (seed 기반 생성 + disclaimer 강제)
+- [B5-2] 히스토리 저장(선택): `POST /lucky-numbers/history`
+- [B5-3] 공유용 문구 템플릿(선택)
+
+### 프론트엔드
+- [F5-1] Lucky Hub 진입/탭 UI
+- [F5-2] 행운 번호 카드(Flip 애니메이션, 저장/공유)
+- [F5-3] 미니게임 1종 구현(Canvas)
+  - 에너지 파형 탭 or 밸런스 컨트롤 (60초)
+- [F5-4] 게임 결과 화면(가벼운 메시지 + 재플레이)
+
+### QA/운영
+- [Q5-1] “오락용” 고지 노출/공유시 포함 확인
+- [O5-1] KPI: Lucky 사용률, 공유 클릭률, 게임 재플레이율
+
+의존성:
+- STEP1~3 기반 데이터가 있으면 번호/게임 메시지 개인화 가능(없어도 동작)
+
+---
+
+## STEP 6. 장기 신뢰/리포트(월간 리포트 + 예측vs실제) (Feature Flag: `FF_REPORTS_V1`)
+
+### 백엔드
+- [B6-1] 월간 집계 배치/쿼리(energy 평균, 변동성, 기록률)
+- [B6-2] 예측vs실제 비교 지표(오차/패턴) 산출
+- [B6-3] PDF 리포트 생성(선택) + 다운로드
+
+### 프론트엔드
+- [F6-1] 기록/리포트 화면(월간 카드)
+- [F6-2] 비교 그래프(간단 라인/바)
+- [F6-3] PDF 다운로드 UI
+
+### QA/운영
+- [Q6-1] 대량 데이터 성능 테스트
+- [O6-1] KPI: 월간 리포트 조회율, 장기 리텐션
+
+의존성:
+- 기록 데이터가 누적되어야 가치가 생김(최소 2~4주)
+
+---
+
+## 의존성 요약(한 줄)
+- STEP1(로그인/프로필/AI/홈) → STEP2(기록/예보) → STEP3(방향 가이드)
+- 지도/행운/게임은 STEP1 이후 병렬 가능하지만 “개인화 체감”은 STEP2~3 이후가 최고
+
+---
+
+## 추천 DevOps 릴리즈 패턴(실행용)
+- Release 1: STEP1 + Flag ON(`FF_CORE_V1`)
+- Release 2: STEP2 일부(기록/가이드보정) 먼저 → 차트/예보 순차 ON
+- Release 3: STEP3(방향 가이드) 카테고리 2개→6개 점진 ON
+- Release 4: 지도 ON
+- Release 5: 행운번호 ON → 게임 ON
+- Release 6: 리포트 ON
+
+---
+
+## 다음으로 바로 만들 수 있는 것
+- (A) **스프린트 계획표(2주 단위)**: 위 WBS를 인원/속도에 맞게 캘린더화
+- (B) **각 API별 상세 Request/Response + 에러코드 표**
+- (C) **DB 테이블 구조(DDL 초안)**
+
+원하시면 “팀 구성(예: FE 2 / BE 2 / DevOps 1)” 기준으로 (A) 스프린트 계획표까지 바로 내려드릴게요.
