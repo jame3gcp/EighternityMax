@@ -38,8 +38,8 @@ const WaveGame: React.FC<WaveGameProps> = ({ onGameEnd, onClose, energyElement }
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number>()
   const lastTimeRef = useRef<number>(Date.now())
-  const waveSpawnTimerRef = useRef<NodeJS.Timeout>()
-  const gameTimerRef = useRef<NodeJS.Timeout>()
+  const waveSpawnTimerRef = useRef<number>()
+  const gameTimerRef = useRef<number>()
   const waveIndexRef = useRef<number>(0)
 
   // 색상 변환 유틸리티
@@ -294,7 +294,7 @@ const WaveGame: React.FC<WaveGameProps> = ({ onGameEnd, onClose, energyElement }
     
     // 주기적으로 파형 생성 (난이도별 간격 사용)
     const spawnInterval = currentDifficultyConfig?.spawnInterval || 1500
-    waveSpawnTimerRef.current = setInterval(spawnWave, spawnInterval)
+    waveSpawnTimerRef.current = window.setInterval(spawnWave, spawnInterval)
     
     return () => {
       if (waveSpawnTimerRef.current) {
@@ -321,7 +321,7 @@ const WaveGame: React.FC<WaveGameProps> = ({ onGameEnd, onClose, energyElement }
     setTimeLeft(GAME_DURATION)
     
     // 1초마다 정확하게 업데이트 (경과 시간 기준으로 계산)
-    gameTimerRef.current = setInterval(() => {
+    gameTimerRef.current = window.setInterval(() => {
       const now = Date.now()
       const elapsedSeconds = Math.floor((now - startTime) / 1000)
       const newTimeLeft = GAME_DURATION - elapsedSeconds
@@ -569,9 +569,9 @@ const WaveGame: React.FC<WaveGameProps> = ({ onGameEnd, onClose, energyElement }
     
     // 게임 상태가 playing일 때 주기적으로 리사이즈 체크 (레이아웃 변화 대응)
     // 하지만 너무 자주 체크하지 않도록 2초마다 체크
-    let resizeInterval: NodeJS.Timeout | null = null
+    let resizeInterval: number | null = null
     if (gameState === 'playing') {
-      resizeInterval = setInterval(() => {
+      resizeInterval = window.setInterval(() => {
         resizeCanvas()
       }, 2000) // 2초마다 체크
     }

@@ -41,7 +41,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onGameEnd, onClose, energyElement
   
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameLoopRef = useRef<number>()
-  const gameTimerRef = useRef<NodeJS.Timeout>()
+  const gameTimerRef = useRef<number>()
   const lastUpdateTimeRef = useRef<number>(Date.now())
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   
