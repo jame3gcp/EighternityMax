@@ -81,7 +81,7 @@ const LuckyHub: React.FC = () => {
     // Life Profile 로드 (설명용)
     // 에러가 발생해도 게임은 플레이할 수 있도록 처리
     if (!lifeProfile) {
-      fetchLifeProfile().catch((error) => {
+      fetchLifeProfile().catch((error: any) => {
         // 404는 정상적인 경우일 수 있음 (아직 프로필이 생성되지 않음)
         if (error?.message?.includes('Not Found') || error?.statusCode === 404) {
           console.log('Life Profile not found - this is normal if profile is not created yet')
@@ -268,7 +268,7 @@ const LuckyHub: React.FC = () => {
         <AnimatePresence>
           {selectedGame === 'wave' && !showGameResult && (
             <WaveGame
-              onGameEnd={(stats) => {
+              onGameEnd={(stats: GameStats) => {
                 setGameStats(stats)
                 setShowGameResult(true)
               }}
@@ -282,7 +282,7 @@ const LuckyHub: React.FC = () => {
           )}
           {selectedGame === 'snake' && !showGameResult && (
             <SnakeGame
-              onGameEnd={(stats) => {
+              onGameEnd={(stats: SnakeGameStats) => {
                 setGameStats(stats)
                 setShowGameResult(true)
               }}

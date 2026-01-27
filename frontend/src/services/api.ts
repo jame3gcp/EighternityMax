@@ -266,14 +266,15 @@ class UserApi {
     }
     const client = new ApiClient(V1_API_BASE)
     const data = await client.get<any>('/users/me')
-    return {
+    const user: User = {
       id: data.id,
       name: data.display_name || data.name || '사용자',
       email: data.email,
       createdAt: data.created_at || data.createdAt,
-      provider: data.provider,
-      displayName: data.display_name,
+      ...(data.provider && { provider: data.provider }),
+      ...(data.display_name && { displayName: data.display_name }),
     }
+    return user
   }
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
@@ -282,14 +283,15 @@ class UserApi {
     }
     const client = new ApiClient(API_BASE_URL)
     const data = await client.put<any>(`/api/users/${userId}`, updates)
-    return {
+    const user: User = {
       id: data.id,
       name: data.display_name || data.name,
       email: data.email,
       createdAt: data.created_at || data.createdAt,
-      provider: data.provider,
-      displayName: data.display_name,
+      ...(data.provider && { provider: data.provider }),
+      ...(data.display_name && { displayName: data.display_name }),
     }
+    return user
   }
 
   async deleteAccount(): Promise<{ success: boolean; message: string }> {
