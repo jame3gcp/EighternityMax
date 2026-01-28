@@ -55,9 +55,15 @@ const Login: React.FC = () => {
   const handleOAuthLogin = async (provider: 'kakao' | 'google') => {
     try {
       await authApi.signInWithOAuth(provider)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Login error:', error)
-      alert('로그인 초기화에 실패했습니다. Supabase 환경 변수를 확인해주세요.')
+      const err = error as { msg?: string; error_code?: string }
+      const msg = err?.msg ?? (error as Error)?.message ?? ''
+      if (msg.includes('provider is not enabled') || err?.error_code === 'validation_failed') {
+        alert(`${provider === 'google' ? '구글' : '카카오'} 로그인이 아직 설정되지 않았습니다.\n\nSupabase 대시보드 → Authentication → Providers에서 해당 제공자를 활성화해 주세요.\n자세한 방법은 docs/SUPABASE_OAUTH_SETUP.md를 참고하세요.`)
+      } else {
+        alert('로그인 초기화에 실패했습니다. Supabase 환경 변수를 확인해 주세요.')
+      }
     }
   }
 

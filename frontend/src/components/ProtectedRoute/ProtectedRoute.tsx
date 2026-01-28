@@ -11,11 +11,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation()
   const accessToken = TokenManager.getAccessToken()
 
+  // 디버깅: 토큰 확인 로그 (개발 환경)
+  if (import.meta.env.DEV) {
+    console.log('[ProtectedRoute]', {
+      path: location.pathname,
+      hasToken: !!accessToken,
+      tokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : null,
+    })
+  }
+
   if (!accessToken) {
     // 현재 경로를 저장하여 로그인 후 리다이렉트
     // 단, 로그인 페이지 자체는 저장하지 않음
     if (location.pathname !== '/login' && location.pathname !== '/auth/callback') {
       sessionStorage.setItem(REDIRECT_KEY, location.pathname + location.search)
+      console.log('[ProtectedRoute] 리다이렉트 경로 저장:', location.pathname + location.search)
     }
     return <Navigate to="/login" replace />
   }

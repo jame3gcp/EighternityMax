@@ -355,20 +355,56 @@ class AuthApi {
   }
 
   async handleAuthCallback(): Promise<OAuthCallbackResponse | null> {
+    console.log('[AuthCallback] 시작')
+    
+    // URL에서 hash fragment 확인 (Supabase OAuth는 hash에 토큰을 넣을 수 있음)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const accessTokenFromHash = hashParams.get('access_token')
+    const refreshTokenFromHash = hashParams.get('refresh_token')
+    
+    if (accessTokenFromHash) {
+      console.log('[AuthCallback] Hash에서 토큰 발견, Supabase 세션 설정 시도')
+      // Hash에 토큰이 있으면 Supabase 세션 설정
+      const { error: setSessionError } = await supabaseClient.auth.setSession({
+        access_token: accessTokenFromHash,
+        refresh_token: refreshTokenFromHash || '',
+      })
+      if (setSessionError) {
+        console.error('[AuthCallback] 세션 설정 실패:', setSessionError)
+        throw setSessionError
+      }
+    }
+    
     const { data: { session }, error } = await supabaseClient.auth.getSession()
-    if (error) throw error
-    if (!session) return null
+    console.log('[AuthCallback] Supabase 세션 확인:', { hasSession: !!session, error })
+    
+    if (error) {
+      console.error('[AuthCallback] 세션 가져오기 실패:', error)
+      throw error
+    }
+    if (!session) {
+      console.warn('[AuthCallback] 세션이 없습니다')
+      return null
+    }
+
+    const provider = session.user.app_metadata?.provider || 'google' // 기본값을 google로
+    console.log('[AuthCallback] 백엔드 콜백 호출:', { provider, hasAccessToken: !!session.access_token })
 
     const client = new ApiClient(V1_API_BASE)
     const response = await client.post<OAuthCallbackResponse>(
-      `/auth/oauth/${session.user.app_metadata?.provider || 'supabase'}/callback`,
+      `/auth/oauth/${provider}/callback`,
       {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       }
     )
 
+    console.log('[AuthCallback] 백엔드 응답:', { hasTokens: !!response.tokens.access_token, nextStep: response.next_step })
+    
     TokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token)
+    
+    console.log('[AuthCallback] 토큰 저장 완료:', { hasStoredToken: !!TokenManager.getAccessToken() })
+    
     return response
   }
 
