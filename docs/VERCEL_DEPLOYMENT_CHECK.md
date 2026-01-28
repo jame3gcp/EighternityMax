@@ -32,7 +32,12 @@ Vercel 대시보드 > Deployments > 최신 배포 > Build Logs에서:
 - 에러가 없는지 확인
 - `frontend/src/services/api.ts` 파일이 빌드에 포함되었는지 확인
 
-### 3. 실제 배포된 코드 확인
+### 3. @supabase/supabase-js 빌드 실패 시 (Rollup failed to resolve import)
+
+- **vercel.json**에 `installCommand: "cd frontend && rm -rf node_modules && npm ci"`가 설정되어 있으면, 매 배포 시 `node_modules`를 지운 뒤 다시 설치합니다. (캐시된 node_modules로 인한 누락 방지)
+- 그래도 실패하면: Vercel 대시보드 → 프로젝트 → **Deployments** → 최신 배포 옆 **⋯** → **Redeploy** 시 **Clear Build Cache** 체크 후 재배포하세요.
+
+### 4. 실제 배포된 코드 확인
 
 **브라우저에서 확인:**
 1. Vercel 배포 URL 접속
