@@ -100,6 +100,7 @@
 | `VITE_SUPABASE_ANON_KEY` | 프론트엔드 | Supabase **anon public** 키 (Project Settings → API) |
 | `SUPABASE_URL` | 백엔드(서버) | 위와 동일한 Supabase URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 백엔드(서버) | Supabase **service_role** 키 (Project Settings → API, 비공개) |
+| `DATABASE_URL` | 백엔드(서버) | Supabase Postgres 연결 문자열 (Project Settings → Database → Connection string, URI) |
 
 ⚠️ **anon** 키는 프론트/백엔드 공용이 아니라, **프론트엔드는 anon**, **백엔드는 service_role**을 씁니다. service_role은 절대 프론트엔드나 공개되지 않도록 하세요.
 
@@ -107,7 +108,7 @@
 
 1. [Vercel Dashboard](https://vercel.com/dashboard) → 프로젝트 선택
 2. **Settings** → **Environment Variables**
-3. 아래 4개를 **Production**, **Preview**, **Development** 모두에 추가 (또는 필요한 환경만):
+3. 아래 5개를 **Production**, **Preview**, **Development** 모두에 추가 (또는 필요한 환경만):
 
    - **Key**: `VITE_SUPABASE_URL`  
      **Value**: `https://<PROJECT_REF>.supabase.co`  
@@ -125,6 +126,10 @@
      **Value**: `eyJhbGci...` (service_role **secret** 키)  
      (Project Settings → API → Project API keys → **service_role** **secret**)
 
+   - **Key**: `DATABASE_URL`  
+     **Value**: `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres`  
+     (Supabase → Project Settings → Database → Connection string → **URI**; 비밀번호는 DB 비밀번호)
+
 4. **Save** 후 **Redeploy** (Deployments → 최신 배포 → ⋯ → Redeploy)
 
 ### Supabase에서 키 확인
@@ -136,6 +141,13 @@
   - **service_role secret** → `SUPABASE_SERVICE_ROLE_KEY` (백엔드만, 노출 금지)
 
 키를 수정했다면 Vercel에서 **재배포**해야 반영됩니다.
+
+### 콜백 시 500 에러가 나는 경우
+
+- **백엔드** `POST /v1/auth/oauth/google/callback` 이 500을 반환하면:
+  - **SUPABASE_URL**, **SUPABASE_SERVICE_ROLE_KEY** 가 Vercel 백엔드(서버리스) 환경에 설정되어 있는지 확인하세요.
+  - **DATABASE_URL** (Supabase Postgres 연결 문자열)이 설정되어 있는지 확인하세요. 백엔드는 사용자/프로필을 DB에 저장하므로 이 값이 없으면 DB 쿼리에서 500이 납니다.
+- Vercel 대시보드 → 해당 배포 → **Functions** 로그에서 `[auth]` 로그를 확인하면 Supabase/DB 에러 메시지를 볼 수 있습니다.
 
 ### 코드 측 우회 (환경 변수 없이 콜백만 동작시키기)
 

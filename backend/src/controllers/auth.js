@@ -69,33 +69,64 @@ export const authController = {
       // 일반 provider는 Supabase 사용
       if (!access_token) throw new ApiError(400, 'access_token is required from Supabase Auth');
 
-      const { data: { user }, error } = await supabase.auth.getUser(access_token);
-      if (error || !user) throw new ApiError(401, 'Invalid Supabase token');
+      // Supabase 환경 변수 확인
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('[auth] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+        throw new ApiError(503, 'Server auth config missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+      }
 
-      let localUser = await db.query.users.findFirst({
-        where: (u, { and, eq }) => and(eq(u.provider, provider), eq(u.providerUserId, user.id))
-      });
+      const { data: { user }, error: supabaseError } = await supabase.auth.getUser(access_token);
+      if (supabaseError) {
+        console.error('[auth] Supabase getUser error:', supabaseError.message, supabaseError.status);
+        throw new ApiError(401, supabaseError.message || 'Invalid Supabase token');
+      }
+      if (!user) throw new ApiError(401, 'Invalid Supabase token');
+
+      let localUser;
+      try {
+        localUser = await db.query.users.findFirst({
+          where: (u, { and, eq }) => and(eq(u.provider, provider), eq(u.providerUserId, user.id))
+        });
+      } catch (dbErr) {
+        console.error('[auth] DB findFirst users error:', dbErr.message);
+        throw new ApiError(503, 'Database error. Check DATABASE_URL and tables.');
+      }
 
       const isNewUser = !localUser;
       if (isNewUser) {
-        const [newUser] = await db.insert(users).values({
-          id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          provider,
-          providerUserId: user.id,
-          email: user.email,
-          displayName: user.user_metadata?.full_name || `${provider} 사용자`,
-          createdAt: new Date(),
-          lastLoginAt: new Date(),
-        }).returning();
-        localUser = newUser;
+        try {
+          const [newUser] = await db.insert(users).values({
+            id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            provider,
+            providerUserId: user.id,
+            email: user.email ?? null,
+            displayName: user.user_metadata?.full_name || `${provider} 사용자`,
+            createdAt: new Date(),
+            lastLoginAt: new Date(),
+          }).returning();
+          localUser = newUser;
+        } catch (insertErr) {
+          console.error('[auth] DB insert users error:', insertErr.message);
+          throw new ApiError(503, 'Database error creating user. Check DATABASE_URL and users table.');
+        }
       } else {
-        await db.update(users)
-          .set({ lastLoginAt: new Date() })
-          .where(eq(users.id, localUser.id));
+        try {
+          await db.update(users)
+            .set({ lastLoginAt: new Date() })
+            .where(eq(users.id, localUser.id));
+        } catch (updateErr) {
+          console.error('[auth] DB update users error:', updateErr.message);
+          throw new ApiError(503, 'Database error updating user.');
+        }
       }
 
-      const profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, localUser.id) });
-      const lifeProfile = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, localUser.id) });
+      let profile, lifeProfile;
+      try {
+        profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, localUser.id) });
+        lifeProfile = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, localUser.id) });
+      } catch (dbErr) {
+        console.error('[auth] DB query profiles/lifeProfiles error:', dbErr.message);
+      }
 
       let nextStep = 'ready';
       if (!profile) nextStep = 'profile_required';
@@ -110,11 +141,16 @@ export const authController = {
         },
         tokens: {
           access_token,
-          refresh_token,
+          refresh_token: refresh_token || '',
         },
         next_step: nextStep,
       });
     } catch (error) {
+      if (error instanceof ApiError) {
+        next(error);
+        return;
+      }
+      console.error('[auth] oauthCallback unexpected error:', error?.message || error);
       next(error);
     }
   },

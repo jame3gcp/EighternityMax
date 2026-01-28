@@ -11,6 +11,9 @@ import type { GameStats } from '@/components/WaveGame/WaveGame.utils'
 import SnakeGame from '@/components/SnakeGame/SnakeGame'
 import SnakeGameResult from '@/components/SnakeGame/SnakeGameResult'
 import type { SnakeGameStats } from '@/components/SnakeGame/SnakeGame.utils'
+import BalanceGame from '@/components/BalanceGame/BalanceGame'
+import BalanceGameResult from '@/components/BalanceGame/BalanceGameResult'
+import type { BalanceGameStats } from '@/components/BalanceGame/BalanceGame.utils'
 
 // 오늘 날짜 기반으로 활성화된 Energy Element 계산
 const getTodayEnergyElement = (lifeProfile?: any) => {
@@ -74,7 +77,7 @@ const LuckyHub: React.FC = () => {
   const [luckyNumbers, setLuckyNumbers] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
-  const [gameStats, setGameStats] = useState<GameStats | SnakeGameStats | null>(null)
+  const [gameStats, setGameStats] = useState<GameStats | SnakeGameStats | BalanceGameStats | null>(null)
   const [showGameResult, setShowGameResult] = useState(false)
 
   useEffect(() => {
@@ -118,7 +121,7 @@ const LuckyHub: React.FC = () => {
   const games = [
     { id: 'wave', name: '에너지 파형 맞추기', description: '파동에 맞춰 탭하여 집중력을 높이세요', icon: '🌊', available: true },
     { id: 'snake', name: '에너지 모으기 지렁이', description: '지렁이를 조작하여 에너지를 모으세요', icon: '🐍', available: true },
-    { id: 'balance', name: '밸런스 컨트롤', description: '에너지 게이지를 중앙에 유지하세요', icon: '⚖️', available: false },
+    { id: 'balance', name: '밸런스 컨트롤', description: '에너지 게이지를 중앙에 유지하세요', icon: '⚖️', available: true },
     { id: 'choice', name: '선택형 시뮬레이션', description: '상황을 선택하면 오늘 타입을 분석합니다', icon: '🎯', available: false },
     { id: 'flow-connect', name: '에너지 흐름 연결', description: '점들을 순서대로 연결하세요', icon: '🔗', available: false },
     { id: 'color-match', name: '에너지 색상 구분', description: '목표 색상을 빠르게 찾아 탭하세요', icon: '🎨', available: false },
@@ -294,6 +297,20 @@ const LuckyHub: React.FC = () => {
               energyElement={getEnergyElementForGame('snake', lifeProfile)}
             />
           )}
+          {selectedGame === 'balance' && !showGameResult && (
+            <BalanceGame
+              onGameEnd={(stats: BalanceGameStats) => {
+                setGameStats(stats)
+                setShowGameResult(true)
+              }}
+              onClose={() => {
+                setSelectedGame(null)
+                setShowGameResult(false)
+                setGameStats(null)
+              }}
+              energyElement={getEnergyElementForGame('balance', lifeProfile)}
+            />
+          )}
         </AnimatePresence>
 
         {/* 게임 결과 모달 */}
@@ -350,10 +367,36 @@ const LuckyHub: React.FC = () => {
               </motion.div>
             </div>
           )}
+          {showGameResult && gameStats && selectedGame === 'balance' && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <BalanceGameResult
+                  stats={gameStats as BalanceGameStats}
+                  energyElement={getEnergyElementForGame('balance', lifeProfile)}
+                  onPlayAgain={() => {
+                    setShowGameResult(false)
+                    setGameStats(null)
+                    setSelectedGame(null)
+                    setTimeout(() => setSelectedGame('balance'), 100)
+                  }}
+                  onClose={() => {
+                    setSelectedGame(null)
+                    setShowGameResult(false)
+                    setGameStats(null)
+                  }}
+                />
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
 
         {/* 다른 게임들은 아직 준비 중 */}
-        {selectedGame && selectedGame !== 'wave' && selectedGame !== 'snake' && (
+        {selectedGame && selectedGame !== 'wave' && selectedGame !== 'snake' && selectedGame !== 'balance' && (
           <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
             <p className="text-gray-700 dark:text-gray-300 mb-4">
               {games.find(g => g.id === selectedGame)?.name} 게임은 곧 출시될 예정입니다.
