@@ -88,6 +88,63 @@
    - 로컬: `http://localhost:5173`에서 로그인 시도 → `http://localhost:5173/auth/callback`로 리다이렉트되어야 함
    - 배포: Vercel URL에서 로그인 시도 → `https://your-app.vercel.app/auth/callback`로 리다이렉트되어야 함
 
+## 6. "Invalid API key" 오류 해결 (로그인 처리 중)
+
+로그인 후 `/auth/callback`에서 **"Invalid API key"** 가 나오면, **Vercel에 Supabase 환경 변수가 없거나 잘못 들어간 경우**입니다.
+
+### 필요한 환경 변수
+
+| 변수명 | 사용처 | 설명 |
+|--------|--------|------|
+| `VITE_SUPABASE_URL` | 프론트엔드 | Supabase 프로젝트 URL (예: `https://xxxx.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | 프론트엔드 | Supabase **anon public** 키 (Project Settings → API) |
+| `SUPABASE_URL` | 백엔드(서버) | 위와 동일한 Supabase URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | 백엔드(서버) | Supabase **service_role** 키 (Project Settings → API, 비공개) |
+
+⚠️ **anon** 키는 프론트/백엔드 공용이 아니라, **프론트엔드는 anon**, **백엔드는 service_role**을 씁니다. service_role은 절대 프론트엔드나 공개되지 않도록 하세요.
+
+### Vercel에서 설정하는 방법
+
+1. [Vercel Dashboard](https://vercel.com/dashboard) → 프로젝트 선택
+2. **Settings** → **Environment Variables**
+3. 아래 4개를 **Production**, **Preview**, **Development** 모두에 추가 (또는 필요한 환경만):
+
+   - **Key**: `VITE_SUPABASE_URL`  
+     **Value**: `https://<PROJECT_REF>.supabase.co`  
+     (Supabase 대시보드 → Project Settings → API → Project URL)
+
+   - **Key**: `VITE_SUPABASE_ANON_KEY`  
+     **Value**: `eyJhbGci...` (anon **public** 키)  
+     (Project Settings → API → Project API keys → **anon** **public**)
+
+   - **Key**: `SUPABASE_URL`  
+     **Value**: `https://<PROJECT_REF>.supabase.co`  
+     (위와 동일)
+
+   - **Key**: `SUPABASE_SERVICE_ROLE_KEY`  
+     **Value**: `eyJhbGci...` (service_role **secret** 키)  
+     (Project Settings → API → Project API keys → **service_role** **secret**)
+
+4. **Save** 후 **Redeploy** (Deployments → 최신 배포 → ⋯ → Redeploy)
+
+### Supabase에서 키 확인
+
+- [Supabase Dashboard](https://supabase.com/dashboard) → 프로젝트 → **Project Settings** (왼쪽 하단) → **API**
+- **Project URL** → `VITE_SUPABASE_URL`, `SUPABASE_URL`에 사용
+- **Project API keys**
+  - **anon public** → `VITE_SUPABASE_ANON_KEY` (프론트엔드)
+  - **service_role secret** → `SUPABASE_SERVICE_ROLE_KEY` (백엔드만, 노출 금지)
+
+키를 수정했다면 Vercel에서 **재배포**해야 반영됩니다.
+
+### 코드 측 우회 (환경 변수 없이 콜백만 동작시키기)
+
+앱에서는 **구글 로그인 후 리다이렉트될 때** URL hash에 `access_token`이 오면, **프론트 Supabase 클라이언트를 쓰지 않고** 그 토큰을 그대로 백엔드 `/v1/auth/oauth/google/callback`으로 보내도록 되어 있습니다.  
+따라서 **콜백 페이지**에서는 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`가 없어도 "Invalid API key" 없이 동작합니다.  
+(처음 로그인 버튼을 누를 때의 리다이렉트는 여전히 Supabase가 처리하므로, 구글 로그인 자체를 쓰려면 Supabase 프로젝트 설정과 **백엔드** 환경 변수 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`는 필요합니다.)
+
+---
+
 ## 참고
 
 - Supabase 문서: [Third-party OAuth providers](https://supabase.com/docs/guides/auth/social-login)
