@@ -361,7 +361,7 @@ class AuthApi {
 
     const client = new ApiClient(V1_API_BASE)
     const response = await client.post<OAuthCallbackResponse>(
-      `/auth/oauth/${session.user.app_metadata.provider || 'supabase'}/callback`,
+      `/auth/oauth/${session.user.app_metadata?.provider || 'supabase'}/callback`,
       {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
