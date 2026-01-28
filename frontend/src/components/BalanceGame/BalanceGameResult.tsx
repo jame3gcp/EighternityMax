@@ -131,7 +131,19 @@ const BalanceGameResult: React.FC<BalanceGameResultProps> = ({
           className="bg-primary/5 rounded-lg p-6 mb-6 border-l-4 border-primary shadow-md"
         >
           <div className="flex items-center gap-3 mb-3">
-            <EnergyElementBadge element={energyElement} size="sm" />
+            <EnergyElementBadge
+              element={{
+                id: (energyElement.id as 'growth' | 'vitality' | 'stability' | 'clarity' | 'flow') || 'flow',
+                name: energyElement.korean || '',
+                korean: energyElement.korean || '',
+                value: 0,
+                description: '',
+                traits: [],
+                color: energyElement.color,
+              }}
+              size="sm"
+              showValue={false}
+            />
             <h3 className="font-semibold text-gray-900 dark:text-white">에너지 타입 분석</h3>
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
