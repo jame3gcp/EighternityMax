@@ -20,6 +20,10 @@ declare module '@supabase/supabase-js' {
       options?: { redirectTo?: string }
     }): Promise<{ data: unknown; error: Error | null }>
     getSession(): Promise<{ data: { session: AuthSession | null }; error: Error | null }>
+    setSession(session: {
+      access_token: string
+      refresh_token?: string
+    }): Promise<{ data: { session: AuthSession | null } | null; error: Error | null }>
     signOut(): Promise<{ error: Error | null }>
     getUser(): Promise<{ data: { user: unknown }; error: Error | null }>
     refreshSession(): Promise<{ data: { session: AuthSession | null }; error: Error | null }>
