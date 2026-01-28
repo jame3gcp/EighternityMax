@@ -4,6 +4,8 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Vercel builds 배포 시 출력이 /frontend/ 아래에 있으므로 base 설정
+  base: process.env.NODE_ENV === 'production' ? '/frontend/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
