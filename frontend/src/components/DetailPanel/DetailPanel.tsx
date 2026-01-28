@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Phase } from '@/types'
+import type { Phase, LifeProfile } from '@/types'
 import Card from '../Card/Card'
+import EnergyElementBadge from '../EnergyElementBadge/EnergyElementBadge'
+import EnergyTraitsCard from '../EnergyTraitsCard/EnergyTraitsCard'
 import { trapFocus, isEscapeKey } from '@/utils/accessibility'
 
 interface DetailPanelProps {
@@ -9,6 +11,25 @@ interface DetailPanelProps {
   isOpen: boolean
   onClose: () => void
   isMobile?: boolean
+  lifeProfile?: LifeProfile | null
+}
+
+// Phase별 Energy Element 매핑
+const getEnergyElementForPhase = (energy: number, lifeProfile?: LifeProfile | null) => {
+  if (!lifeProfile?.energyElements) return null
+  
+  if (energy >= 80) {
+    return lifeProfile.energyElements.find(e => e.id === 'vitality') || 
+           lifeProfile.energyElements.find(e => e.id === 'growth') ||
+           lifeProfile.energyElements.sort((a, b) => b.value - a.value)[0]
+  } else if (energy >= 60) {
+    return lifeProfile.energyElements.find(e => e.id === 'stability') ||
+           lifeProfile.energyElements.find(e => e.id === 'clarity') ||
+           lifeProfile.energyElements.sort((a, b) => b.value - a.value)[0]
+  } else {
+    return lifeProfile.energyElements.find(e => e.id === 'flow') ||
+           lifeProfile.energyElements.sort((a, b) => a.value - b.value)[0]
+  }
 }
 
 const DetailPanel: React.FC<DetailPanelProps> = ({
@@ -16,6 +37,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
   isOpen,
   onClose,
   isMobile = false,
+  lifeProfile,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -75,6 +97,42 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
           </div>
         </div>
 
+        {/* Life Profile 기반 Energy Element 정보 */}
+        {lifeProfile && (() => {
+          const phaseElement = getEnergyElementForPhase(phase.energy, lifeProfile)
+          if (phaseElement) {
+            return (
+              <Card>
+                <h3 className="font-semibold mb-3">활성화된 에너지 요소</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <EnergyElementBadge element={phaseElement} size="md" />
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {phaseElement.description}
+                </p>
+                {phaseElement.traits && phaseElement.traits.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                      관련 특성
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {phaseElement.traits.map((trait, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs"
+                        >
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )
+          }
+          return null
+        })()}
+
         <Card>
           <h3 className="font-semibold mb-2">추천 행동</h3>
           <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300" role="list">
@@ -82,6 +140,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
               <li key={index}>{rec}</li>
             ))}
           </ul>
+          {/* Life Profile 기반 추가 설명 */}
+          {lifeProfile && (() => {
+            const phaseElement = getEnergyElementForPhase(phase.energy, lifeProfile)
+            if (phaseElement) {
+              return (
+                <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded text-xs text-gray-600 dark:text-gray-400">
+                  <strong>{phaseElement.korean}</strong> 에너지가 활성화된 이 단계에서는 이러한 행동이 특히 효과적입니다.
+                </div>
+              )
+            }
+            return null
+          })()}
         </Card>
 
         <Card>
@@ -92,6 +162,37 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             ))}
           </ul>
         </Card>
+
+        {/* 관련 Energy Traits 표시 */}
+        {lifeProfile?.energyTraits && (() => {
+          const phaseElement = getEnergyElementForPhase(phase.energy, lifeProfile)
+          if (phaseElement) {
+            // Energy Element와 관련된 Traits 찾기
+            const relatedTraits = lifeProfile.energyTraits.filter(trait => {
+              // 간단한 매핑 로직 (실제로는 더 정교한 로직 필요)
+              if (phaseElement.id === 'growth' && trait.id === 'creative-insight') return true
+              if (phaseElement.id === 'vitality' && trait.id === 'achievement-drive') return true
+              if (phaseElement.id === 'stability' && trait.id === 'resource-management') return true
+              if (phaseElement.id === 'clarity' && trait.id === 'self-expression') return true
+              if (phaseElement.id === 'flow' && trait.id === 'adaptive-resilience') return true
+              return false
+            })
+            
+            if (relatedTraits.length > 0) {
+              return (
+                <Card>
+                  <h3 className="font-semibold mb-3">관련 에너지 특성</h3>
+                  <div className="space-y-2">
+                    {relatedTraits.map((trait) => (
+                      <EnergyTraitsCard key={trait.id} trait={trait} />
+                    ))}
+                  </div>
+                </Card>
+              )
+            }
+          }
+          return null
+        })()}
       </div>
     </div>
   )

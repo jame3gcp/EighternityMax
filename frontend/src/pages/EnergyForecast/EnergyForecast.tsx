@@ -1,9 +1,37 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import Card from '@/components/Card/Card'
+import EnergyElementBadge from '@/components/EnergyElementBadge/EnergyElementBadge'
+import { useLifeProfileStore } from '@/store/useLifeProfileStore'
+
+// 날짜별 Energy Element 매핑
+const getEnergyElementForEnergy = (energy: number, lifeProfile?: any) => {
+  if (!lifeProfile?.energyElements) return null
+  
+  if (energy >= 70) {
+    return lifeProfile.energyElements.find((e: any) => e.id === 'vitality') || 
+           lifeProfile.energyElements.find((e: any) => e.id === 'growth') ||
+           lifeProfile.energyElements.sort((a: any, b: any) => b.value - a.value)[0]
+  } else if (energy >= 50) {
+    return lifeProfile.energyElements.find((e: any) => e.id === 'stability') ||
+           lifeProfile.energyElements.find((e: any) => e.id === 'clarity') ||
+           lifeProfile.energyElements.sort((a: any, b: any) => b.value - a.value)[0]
+  } else {
+    return lifeProfile.energyElements.find((e: any) => e.id === 'flow') ||
+           lifeProfile.energyElements.sort((a: any, b: any) => a.value - b.value)[0]
+  }
+}
 
 const EnergyForecast: React.FC = () => {
+  const { lifeProfile, fetchLifeProfile } = useLifeProfileStore()
   const [selectedDate, setSelectedDate] = useState<number>(0)
+
+  useEffect(() => {
+    // Life Profile 로드 (설명용)
+    if (!lifeProfile) {
+      fetchLifeProfile()
+    }
+  }, [lifeProfile, fetchLifeProfile])
 
   // 30일 예보 데이터 생성
   const forecastData = Array.from({ length: 30 }, (_, i) => {
@@ -145,13 +173,39 @@ const EnergyForecast: React.FC = () => {
 
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <h3 className="font-semibold mb-2">추천 일정 타입</h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
                   {selectedDay.tag === '집중' && '중요한 업무나 창의적 작업에 집중하기 좋은 날입니다.'}
                   {selectedDay.tag === '회복' && '휴식과 회복에 집중하는 것이 좋습니다.'}
                   {selectedDay.tag === '확장' && '새로운 도전이나 네트워킹에 적합한 시기입니다.'}
                   {selectedDay.tag === '주의' && '과도한 활동을 피하고 안정적인 일정을 권장합니다.'}
                   {selectedDay.tag === '일반' && '일상적인 활동에 적합한 날입니다.'}
                 </p>
+                
+                {/* Life Profile 기반 해석 */}
+                {lifeProfile && (() => {
+                  const dayElement = getEnergyElementForEnergy(selectedDay.energy, lifeProfile)
+                  if (dayElement) {
+                    return (
+                      <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
+                        <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                          에너지 해석
+                        </h4>
+                        <div className="flex items-center gap-2 mb-2">
+                          <EnergyElementBadge element={dayElement} size="sm" />
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          이 날짜는 당신의 <strong>{dayElement.korean}({dayElement.value}%)</strong> 에너지가 활성화되는 시기입니다.
+                          {dayElement.id === 'growth' && ' 창의적인 작업이나 새로운 시작에 좋은 타이밍입니다.'}
+                          {dayElement.id === 'vitality' && ' 활발한 활동과 리더십을 발휘하기 좋은 시기입니다.'}
+                          {dayElement.id === 'stability' && ' 안정적인 업무와 계획 실행에 적합합니다.'}
+                          {dayElement.id === 'clarity' && ' 중요한 결정이나 집중이 필요한 작업에 좋습니다.'}
+                          {dayElement.id === 'flow' && ' 유연하게 대응하고 회복하기 좋은 시기입니다.'}
+                        </p>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
               </div>
             </div>
           )}

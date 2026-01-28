@@ -1,11 +1,27 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/useUIStore'
+import { useUserStore } from '@/store/useUserStore'
+import { authApi } from '@/services/api'
 import Button from '../Button/Button'
 
 const Header: React.FC = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { toggleSidebar, toggleDarkMode, isDarkMode } = useUIStore()
+  const { clearUser } = useUserStore()
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+      clearUser()
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      clearUser()
+      navigate('/login')
+    }
+  }
   
   const navItems = [
     { path: '/', label: 'Home' },
@@ -26,21 +42,23 @@ const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
+            {/* 모바일 & 태블릿: 메뉴 토글 버튼 (xl 미만) */}
             <button
               onClick={toggleSidebar}
-              className="lg:hidden touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="xl:hidden touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="메뉴 열기"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <Link to="/" className="ml-2 lg:ml-0">
+            <Link to="/" className="ml-2 xl:ml-0">
               <h1 className="text-xl font-bold text-primary dark:text-primary-light">Eighternity</h1>
             </Link>
           </div>
           
-          <nav className="hidden lg:flex space-x-1" role="navigation" aria-label="메인 네비게이션">
+          {/* 데스크탑: 상단 네비게이션 (xl 이상) */}
+          <nav className="hidden xl:flex space-x-1" role="navigation" aria-label="메인 네비게이션">
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -72,6 +90,16 @@ const Header: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400"
+              aria-label="로그아웃"
+              title="로그아웃"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </div>

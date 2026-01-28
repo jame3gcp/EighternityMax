@@ -23,7 +23,7 @@ const Sidebar: React.FC = () => {
   
   return (
     <>
-      {/* 모바일 오버레이 */}
+      {/* 모바일 & 태블릿 오버레이 사이드바 */}
       <AnimatePresence>
         {isSidebarOpen && (
           <>
@@ -32,21 +32,21 @@ const Sidebar: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeSidebar}
-              className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
             />
             <motion.aside
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-xl z-50 lg:z-30 lg:translate-x-0"
+              className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-xl z-50 xl:hidden"
             >
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                   <h2 className="text-lg font-bold text-primary dark:text-primary-light">Eighternity</h2>
                   <button
                     onClick={closeSidebar}
-                    className="touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden"
+                    className="touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                     aria-label="메뉴 닫기"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,8 +80,8 @@ const Sidebar: React.FC = () => {
         )}
       </AnimatePresence>
       
-      {/* 데스크탑 사이드바 */}
-      <aside className="hidden lg:block fixed top-16 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-md border-r border-gray-200 dark:border-gray-700 z-30">
+      {/* 데스크탑 사이드바 (xl 이상에서만 항상 표시) */}
+      <aside className="hidden xl:block fixed top-16 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-md border-r border-gray-200 dark:border-gray-700 z-30">
         <nav className="p-4">
           <ul className="space-y-2">
             {navItems.map((item) => (

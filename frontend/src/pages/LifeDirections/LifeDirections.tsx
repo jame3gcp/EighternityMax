@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Card from '@/components/Card/Card'
-import Button from '@/components/Button/Button'
-import { motion } from 'framer-motion'
+import EnergyTraitsCard from '@/components/EnergyTraitsCard/EnergyTraitsCard'
+import { directionApi } from '@/services/api'
+import { useLifeProfileStore } from '@/store/useLifeProfileStore'
+import type { Directions } from '@/types'
 
-type Category = 'love' | 'money' | 'career' | 'health' | 'move' | 'connect'
-
-const categories: { id: Category; label: string; icon: string }[] = [
+const categories: { id: string; label: string; icon: string }[] = [
   { id: 'love', label: '애정/관계', icon: '❤️' },
   { id: 'money', label: '재정/소비', icon: '💰' },
   { id: 'career', label: '커리어/업무', icon: '💼' },
@@ -14,82 +14,58 @@ const categories: { id: Category; label: string; icon: string }[] = [
   { id: 'connect', label: '만남/연락', icon: '🤝' },
 ]
 
-const LifeDirections: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<Category>('love')
-
-  const getDirectionData = (category: Category) => {
-    const data: Record<Category, any> = {
-      love: {
-        today: {
-          focus: '오늘은 깊은 대화를 나누기에 좋은 시기입니다.',
-          attention: '감정적 판단보다는 논리적 접근이 도움이 됩니다.',
-        },
-        monthly: {
-          try: '새로운 관계를 시작하거나 기존 관계를 발전시킬 수 있는 시기입니다.',
-          avoid: '중요한 관계 결정은 서두르지 마세요.',
-        },
-        reason: '현재 에너지 패턴이 협력과 소통에 유리한 단계입니다.',
-      },
-      money: {
-        today: {
-          focus: '재정 계획을 세우거나 검토하기 좋은 날입니다.',
-          attention: '충동적 소비는 피하고 장기적 관점을 유지하세요.',
-        },
-        monthly: {
-          try: '투자나 저축 계획을 수립하는 것이 좋습니다.',
-          avoid: '큰 금액의 결정은 신중하게 검토하세요.',
-        },
-        reason: '에너지 흐름이 계획과 분석에 유리한 시기입니다.',
-      },
-      career: {
-        today: {
-          focus: '중요한 업무나 프로젝트에 집중할 수 있는 날입니다.',
-          attention: '팀워크를 중시하고 협력적인 접근이 효과적입니다.',
-        },
-        monthly: {
-          try: '새로운 도전이나 스킬 개발에 적합한 시기입니다.',
-          avoid: '급격한 직장 변경은 신중하게 결정하세요.',
-        },
-        reason: '현재 단계가 창의성과 리더십 발휘에 유리합니다.',
-      },
-      health: {
-        today: {
-          focus: '규칙적인 수면과 식사 패턴을 유지하세요.',
-          attention: '과도한 운동보다는 적절한 휴식이 필요합니다.',
-        },
-        monthly: {
-          try: '건강한 습관을 형성하고 유지하는 좋은 시기입니다.',
-          avoid: '무리한 다이어트나 운동 계획은 피하세요.',
-        },
-        reason: '회복과 균형에 집중해야 할 에너지 단계입니다.',
-      },
-      move: {
-        today: {
-          focus: '이사나 환경 변화를 계획하기 좋은 날입니다.',
-          attention: '성급한 결정보다는 신중한 검토가 필요합니다.',
-        },
-        monthly: {
-          try: '새로운 환경이나 변화를 준비하는 시기입니다.',
-          avoid: '충동적인 이동이나 변화는 피하세요.',
-        },
-        reason: '변화에 대한 준비가 잘 되는 에너지 흐름입니다.',
-      },
-      connect: {
-        today: {
-          focus: '네트워킹이나 새로운 인연을 만나기에 좋은 날입니다.',
-          attention: '진정성 있는 소통을 중시하세요.',
-        },
-        monthly: {
-          try: '사회적 활동이나 모임에 참여하는 것이 좋습니다.',
-          avoid: '표면적인 관계보다는 깊은 연결을 추구하세요.',
-        },
-        reason: '소통과 협력에 유리한 에너지 패턴입니다.',
-      },
-    }
-    return data[category]
+// 카테고리별 Energy Traits 매핑
+const getTraitsForCategory = (categoryId: string, energyTraits?: any[]) => {
+  if (!energyTraits) return []
+  
+  const mapping: Record<string, string[]> = {
+    love: ['relationship-harmony', 'self-expression'],
+    money: ['resource-management'],
+    career: ['achievement-drive', 'creative-insight'],
+    health: ['adaptive-resilience'],
+    move: ['flow'], // Flow Element
+    connect: ['self-expression', 'relationship-harmony'],
   }
+  
+  const traitIds = mapping[categoryId] || []
+  return energyTraits.filter(t => traitIds.includes(t.id))
+}
 
-  const directionData = getDirectionData(selectedCategory)
+const LifeDirections: React.FC = () => {
+  const { lifeProfile, fetchLifeProfile } = useLifeProfileStore()
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('love')
+  const [directions, setDirections] = useState<Directions | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadDirections = async () => {
+      try {
+        setIsLoading(true)
+        const data = await directionApi.getDirections()
+        setDirections(data)
+      } catch (error) {
+        console.error('Failed to load directions:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadDirections()
+    
+    // Life Profile 로드 (설명용)
+    if (!lifeProfile) {
+      fetchLifeProfile()
+    }
+  }, [lifeProfile, fetchLifeProfile])
+
+  const selectedCategory = directions?.categories.find(c => c.id === selectedCategoryId)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -103,18 +79,18 @@ const LifeDirections: React.FC = () => {
       <Card className="mb-6">
         <h2 className="text-xl font-bold mb-4">카테고리</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {categories.map((category) => (
+          {categories.map((cat) => (
             <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
+              key={cat.id}
+              onClick={() => setSelectedCategoryId(cat.id)}
               className={`touch-target p-4 rounded-lg text-center transition-colors ${
-                selectedCategory === category.id
+                selectedCategoryId === cat.id
                   ? 'bg-primary text-white'
                   : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
-              <div className="text-3xl mb-2">{category.icon}</div>
-              <div className="text-sm font-medium">{category.label}</div>
+              <div className="text-3xl mb-2">{cat.icon}</div>
+              <div className="text-sm font-medium">{cat.label}</div>
             </button>
           ))}
         </div>
@@ -123,44 +99,85 @@ const LifeDirections: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <h2 className="text-xl font-bold mb-4">오늘의 방향</h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-energy-green mb-2">지금 하기 좋은 행동</h3>
-              <p className="text-gray-700 dark:text-gray-300">{directionData.today.focus}</p>
+          {selectedCategory ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-energy-green mb-2">지수: {selectedCategory.score}</h3>
+                <p className="text-gray-700 dark:text-gray-300">{selectedCategory.guide}</p>
+              </div>
+              
+              {/* Life Profile 기반 추천 근거 */}
+              {lifeProfile?.energyTraits && (() => {
+                const relevantTraits = getTraitsForCategory(selectedCategoryId, lifeProfile.energyTraits)
+                if (relevantTraits.length > 0) {
+                  const topTrait = relevantTraits.sort((a, b) => b.score - a.score)[0]
+                  return (
+                    <div className="p-3 bg-primary/5 rounded-lg border-l-4 border-primary">
+                      <h4 className="text-sm font-semibold text-primary mb-1">추천 근거</h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        당신의 <strong>{topTrait.korean}({topTrait.score}점)</strong> 특성상,
+                        {topTrait.strength}
+                      </p>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+
+              <div>
+                <h3 className="font-semibold text-primary mb-2">추천 활동</h3>
+                <p className="text-gray-700 dark:text-gray-300">{selectedCategory.recommendation}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-status-warning mb-2">피해야 할 선택</h3>
-              <p className="text-gray-700 dark:text-gray-300">{directionData.today.attention}</p>
-            </div>
-          </div>
+          ) : (
+            <p className="text-gray-500">카테고리를 선택해주세요.</p>
+          )}
         </Card>
 
         <Card>
-          <h2 className="text-xl font-bold mb-4">이번 달 흐름</h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-energy-green mb-2">시도하면 좋은 영역</h3>
-              <p className="text-gray-700 dark:text-gray-300">{directionData.monthly.try}</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-status-warning mb-2">미루는 것이 좋은 영역</h3>
-              <p className="text-gray-700 dark:text-gray-300">{directionData.monthly.avoid}</p>
-            </div>
+          <h2 className="text-xl font-bold mb-4">AI 분석 리포트</h2>
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-4">
+            <p className="text-gray-700 dark:text-gray-300">{directions?.explanation}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              * 본 가이드는 라이프 패턴 분석 기반의 참고용입니다.
+            </p>
           </div>
+
+          {/* 관련 Energy Traits 표시 */}
+          {lifeProfile?.energyTraits && (() => {
+            const relevantTraits = getTraitsForCategory(selectedCategoryId, lifeProfile.energyTraits)
+            if (relevantTraits.length > 0) {
+              return (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                  <h3 className="text-sm font-semibold mb-3 text-gray-600 dark:text-gray-400">
+                    이 카테고리에 영향을 미치는 에너지 특성
+                  </h3>
+                  <div className="space-y-2">
+                    {relevantTraits.map((trait) => (
+                      <EnergyTraitsCard key={trait.id} trait={trait} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                    이 특성들이 오늘의 추천에 영향을 미쳤습니다.
+                  </p>
+                </div>
+              )
+            }
+            return null
+          })()}
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <h2 className="text-xl font-bold mb-4">AI 판단 근거</h2>
-        <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <p className="text-gray-700 dark:text-gray-300">{directionData.reason}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            * 본 가이드는 라이프 패턴 분석 기반의 참고용입니다.
-          </p>
-        </div>
-      </Card>
+      {/* 법적 고지 */}
+      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          본 서비스는 라이프 패턴 분석 기반의 참고용 가이드입니다.
+          의료, 투자, 법률 판단을 대체하지 않으며, 모든 추천은 참고용으로만 활용해주세요.
+        </p>
+      </div>
     </div>
   )
 }
 
 export default LifeDirections
+

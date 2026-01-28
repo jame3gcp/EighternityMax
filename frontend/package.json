@@ -5,25 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm ci && tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.91.1",
+    "d3": "^7.8.5",
+    "framer-motion": "^10.16.16",
+    "html2canvas": "^1.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "zustand": "^4.4.7",
-    "d3": "^7.8.5",
-    "recharts": "^2.10.3",
-    "framer-motion": "^10.16.16",
     "react-hook-form": "^7.48.2",
-    "html2canvas": "^1.4.1"
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.10.3",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "@types/d3": "^7.4.3",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
