@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useUserStore } from '@/store/useUserStore'
-import { userApi, authApi, profileApi, lifeProfileApi } from '@/services/api'
+import { userApi, authApi, profileApi, lifeProfileApi, isNetworkError } from '@/services/api'
 import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import Input from '@/components/Input/Input'
@@ -35,6 +35,8 @@ const MyPage: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [sajuAnalysis, setSajuAnalysis] = useState<SajuAnalysisResponse | null>(null)
   const [isLoadingSajuAnalysis, setIsLoadingSajuAnalysis] = useState(false)
+  const [showSajuDetail, setShowSajuDetail] = useState(false)
+  const [connectionError, setConnectionError] = useState(false)
   const { register, handleSubmit, reset } = useForm<UserFormData>()
   const {
     register: registerProfile,
@@ -69,6 +71,7 @@ const MyPage: React.FC = () => {
   const loadProfile = async () => {
     try {
       setIsLoadingProfile(true)
+      setConnectionError(false)
       const profileData = await profileApi.getProfile()
       setProfile(profileData ?? null)
       resetProfile(
@@ -91,6 +94,9 @@ const MyPage: React.FC = () => {
             }
       )
     } catch (error) {
+      if (isNetworkError(error)) {
+        setConnectionError(true)
+      }
       console.error('Failed to load profile:', error)
     } finally {
       setIsLoadingProfile(false)
@@ -310,6 +316,17 @@ const MyPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {connectionError && (
+        <div
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          role="alert"
+        >
+          <p className="font-medium">서버에 연결할 수 없습니다.</p>
+          <p className="mt-1 text-sm">
+            백엔드 서버(localhost:3001)가 실행 중인지 확인해 주세요. 개발 시에는 터미널에서 API 서버를 먼저 실행해야 합니다.
+          </p>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">마이페이지</h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -594,7 +611,7 @@ const MyPage: React.FC = () => {
           )}
 
           {/* 천간 특수관계 */}
-          {profile.saju.cheonganRelation && Object.values(profile.saju.cheonganRelation).some((arr) => arr?.length) && (
+          {profile.saju?.cheonganRelation && Object.values(profile.saju.cheonganRelation).some((arr: unknown) => Array.isArray(arr) && arr.length > 0) && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">천간 특수관계</h3>
               <div className="overflow-x-auto">
@@ -613,8 +630,8 @@ const MyPage: React.FC = () => {
                       <td className="px-3 py-2 font-medium">천간 합/冲</td>
                       {(['year', 'month', 'day', 'hour'] as const).map((k) => (
                         <td key={k} className="px-3 py-2">
-                          {profile.saju.cheonganRelation![k]?.length
-                            ? profile.saju.cheonganRelation![k].map((r, i) => (
+                          {profile.saju?.cheonganRelation?.[k]?.length
+                            ? profile.saju.cheonganRelation[k].map((r: { typeKo: string; withStem: string }, i: number) => (
                                 <span key={i}>{r.typeKo}{r.withStem} </span>
                               ))
                             : '-'}
@@ -628,7 +645,7 @@ const MyPage: React.FC = () => {
           )}
 
           {/* 십이신살·신살 종합 (참조: 십이신살 행 + 신살 행) */}
-          {(profile.saju.sinsal12Pillar || profile.saju.sinsalCombined || profile.saju.sinsal12) && (
+          {(profile.saju?.sinsal12Pillar || profile.saju?.sinsalCombined || profile.saju?.sinsal12) && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">십이신살·신살 종합</h3>
               <div className="overflow-x-auto">
@@ -647,7 +664,7 @@ const MyPage: React.FC = () => {
                       <td className="px-3 py-2 font-medium">십이신살</td>
                       {(['year', 'month', 'day', 'hour'] as const).map((p) => (
                         <td key={p} className="px-3 py-2">
-                          {profile.saju.sinsal12?.[p]?.map((s) => s.ko).join(', ') ?? '-'}
+                          {profile.saju?.sinsal12?.[p]?.map((s: { ko: string }) => s.ko).join(', ') ?? '-'}
                         </td>
                       ))}
                     </tr>
@@ -655,7 +672,7 @@ const MyPage: React.FC = () => {
                       <td className="px-3 py-2 font-medium">신살</td>
                       {(['year', 'month', 'day', 'hour'] as const).map((p) => (
                         <td key={p} className="px-3 py-2">
-                          {profile.saju.sinsalCombined?.[p]?.join(', ') ?? '-'}
+                          {profile.saju?.sinsalCombined?.[p]?.join(', ') ?? '-'}
                         </td>
                       ))}
                     </tr>
@@ -666,10 +683,10 @@ const MyPage: React.FC = () => {
           )}
 
           {/* 대운 (참조: 대운나이·간지·천간십성·지지십성·신살·12운성) */}
-          {profile.saju.daeun?.steps?.length && (
+          {profile.saju?.daeun?.steps?.length && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">대운 (한국천문연구원 기준)</h3>
-              {profile.saju.daeun.note && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{profile.saju.daeun.note}</p>}
+              {profile.saju?.daeun?.note && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{profile.saju.daeun.note}</p>}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
                   <thead>
@@ -683,7 +700,7 @@ const MyPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.saju.daeun.steps.map((s, i) => (
+                    {profile.saju?.daeun?.steps.map((s: { age?: number; gapjaKo: string; gapja: string; sipseong?: { ko: string } | null; sipseongJi?: { ko: string } | null; sinsal?: string | null; unseong12?: { ko: string } | null }, i: number) => (
                       <tr key={i} className="border-t border-gray-200 dark:border-gray-600">
                         <td className="px-3 py-2">{s.age ?? [7, 17, 27, 37, 47, 57, 67, 77, 87, 97][i]}세</td>
                         <td className="px-3 py-2 font-mono">{s.gapjaKo} ({s.gapja})</td>
@@ -700,7 +717,7 @@ const MyPage: React.FC = () => {
           )}
 
           {/* 세운(년운): 현재 연도 중심 표시, 올해 행 강조 */}
-          {profile.saju.seun?.length && (
+          {profile.saju?.seun?.length && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">세운(년운)</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">현재 연도 중심으로 표시됩니다.</p>
@@ -717,7 +734,7 @@ const MyPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.saju.seun.map((s, i) => {
+                    {profile.saju?.seun.map((s: { year: number; gapjaKo: string; gapja: string; sipseong?: { ko: string } | null; sipseongJi?: { ko: string } | null; sinsal?: string | null; unseong12?: { ko: string } | null }, i: number) => {
                       const isCurrentYear = s.year === new Date().getFullYear();
                       return (
                         <tr
@@ -740,7 +757,7 @@ const MyPage: React.FC = () => {
           )}
 
           {/* 월운 (참조 사이트와 동일: 당해년 기준, 12월→1월 순) */}
-          {profile.saju.woleun?.length && (
+          {profile.saju?.woleun?.length && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">월운</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">당해년(현재 연도) 기준, 양력 1월=丑月 … 12월=子月</p>
@@ -757,7 +774,7 @@ const MyPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...profile.saju.woleun]
+                    {[...(profile.saju?.woleun ?? [])]
                       .sort((a, b) => b.month - a.month)
                       .map((s, i) => (
                         <tr key={s.month} className="border-t border-gray-200 dark:border-gray-600">
@@ -790,66 +807,98 @@ const MyPage: React.FC = () => {
               <p className="mt-2 text-sm text-gray-500">분석 정보 불러오는 중...</p>
             </div>
           ) : !sajuAnalysis ? (
-            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400">
-              아직 분석이 없습니다. 프로필을 저장하면 자동으로 생성됩니다.
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                아직 분석이 없습니다. 프로필을 저장하면 자동으로 생성됩니다.
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => alert('프로필을 저장한 뒤 사용할 수 있습니다.')}
+              >
+                사주 상세 분석 보기
+              </Button>
             </div>
           ) : sajuAnalysis.status === 'queued' ? (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-200">
-              분석 생성 중입니다. 잠시 후 새로고침하거나 이 페이지를 다시 열어주세요.
+            <div className="space-y-3">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+                분석 생성 중입니다. 잠시 후 새로고침하거나 이 페이지를 다시 열어주세요.
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => loadSajuAnalysis()}>
+                새로고침
+              </Button>
             </div>
           ) : sajuAnalysis.status === 'failed' ? (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-800 dark:text-red-200">
-              분석 생성에 실패했습니다.
-              {sajuAnalysis.error_message && ` (${sajuAnalysis.error_message})`}
+            <div className="space-y-3">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-800 dark:text-red-200">
+                분석 생성에 실패했습니다.
+                {sajuAnalysis.error_message && ` (${sajuAnalysis.error_message})`}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => loadSajuAnalysis()}>
+                새로고침
+              </Button>
             </div>
           ) : sajuAnalysis.status === 'done' && sajuAnalysis.analysis ? (
             <div className="space-y-4">
-              {sajuAnalysis.analysis.summary && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">요약</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.summary}</p>
-                </div>
-              )}
-              {sajuAnalysis.analysis.personality && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">성향</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.personality}</p>
-                </div>
-              )}
-              {sajuAnalysis.analysis.strengths && sajuAnalysis.analysis.strengths.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">강점</h3>
-                  <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-                    {sajuAnalysis.analysis.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {sajuAnalysis.analysis.weaknesses && sajuAnalysis.analysis.weaknesses.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">약점</h3>
-                  <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-                    {sajuAnalysis.analysis.weaknesses.map((w, i) => (
-                      <li key={i}>{w}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {sajuAnalysis.analysis.life_phases && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">인생 국면</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.life_phases}</p>
-                </div>
-              )}
-              {sajuAnalysis.analysis.recommendations && sajuAnalysis.analysis.recommendations.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">추천</h3>
-                  <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-                    {sajuAnalysis.analysis.recommendations.map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
+              <Button
+                type="button"
+                variant={showSajuDetail ? 'outline' : 'primary'}
+                size="sm"
+                onClick={() => setShowSajuDetail((v) => !v)}
+              >
+                {showSajuDetail ? '상세 접기' : '사주 상세 내용 보기'}
+              </Button>
+              {showSajuDetail && (
+                <div className="space-y-4 pt-2 border-t border-gray-200 dark:border-gray-600">
+                  {sajuAnalysis.analysis.summary && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">요약</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.summary}</p>
+                    </div>
+                  )}
+                  {sajuAnalysis.analysis.personality && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">성향</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.personality}</p>
+                    </div>
+                  )}
+                  {sajuAnalysis.analysis.strengths && sajuAnalysis.analysis.strengths.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">강점</h3>
+                      <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+                        {sajuAnalysis.analysis.strengths.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {sajuAnalysis.analysis.weaknesses && sajuAnalysis.analysis.weaknesses.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">약점</h3>
+                      <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+                        {sajuAnalysis.analysis.weaknesses.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {sajuAnalysis.analysis.life_phases && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">인생 국면</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{sajuAnalysis.analysis.life_phases}</p>
+                    </div>
+                  )}
+                  {sajuAnalysis.analysis.recommendations && sajuAnalysis.analysis.recommendations.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">추천</h3>
+                      <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+                        {sajuAnalysis.analysis.recommendations.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
