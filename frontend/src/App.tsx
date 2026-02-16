@@ -18,6 +18,7 @@ const LuckyHub = lazy(() => import('./pages/LuckyHub/LuckyHub'))
 const EnergyMap = lazy(() => import('./pages/EnergyMap/EnergyMap'))
 const Guide = lazy(() => import('./pages/Guide/Guide'))
 const MyPage = lazy(() => import('./pages/MyPage/MyPage'))
+const DevProfileTest = lazy(() => import('./pages/DevProfileTest/DevProfileTest'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('./pages/TermsOfService/TermsOfService'))
 
@@ -128,6 +129,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <MyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dev/profile-test"
+          element={
+            <ProtectedRoute>
+              <DevProfileTest />
             </ProtectedRoute>
           }
         />

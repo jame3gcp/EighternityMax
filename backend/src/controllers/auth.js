@@ -62,6 +62,7 @@ export const authController = {
             refresh_token: devRefreshToken,
           },
           next_step: nextStep,
+          consent_required: !localUser.privacyConsentAt,
         });
         return;
       }
@@ -144,6 +145,7 @@ export const authController = {
           refresh_token: refresh_token || '',
         },
         next_step: nextStep,
+        consent_required: !localUser.privacyConsentAt,
       });
     } catch (error) {
       if (error instanceof ApiError) {

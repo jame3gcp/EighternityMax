@@ -2,26 +2,13 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Card from '@/components/Card/Card'
-import Button from '@/components/Button/Button'
 import { authApi, TokenManager } from '@/services/api'
 import { useUserStore } from '@/store/useUserStore'
 import { getRedirectPath } from '@/components/ProtectedRoute/ProtectedRoute'
 
 const isDev = import.meta.env.DEV
 
-// 카카오 로고 컴포넌트
-const KakaoLogo = () => (
-  <svg
-    className="mr-2 w-5 h-5"
-    viewBox="0 0 24 24"
-    fill="#000000"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.87 5.33 4.67 6.75l-.92 3.36c-.08.3.25.54.51.37l4.02-2.65c.56.07 1.14.11 1.72.11 5.52 0 10-3.58 10-8S17.52 3 12 3z"/>
-  </svg>
-)
-
-// 구글 로고 컴포넌트
+// 구글 로고 컴포넌트 (당분간 구글 기반 로그인만 사용, 카카오는 추후 적용 예정)
 const GoogleLogo = () => (
   <svg
     className="mr-2 w-5 h-5"
@@ -49,18 +36,19 @@ const GoogleLogo = () => (
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
-  const { setUser } = useUserStore()
+  const { setUser, setPrivacyConsentGiven } = useUserStore()
   const [isLoading, setIsLoading] = useState(false)
+  const [devLoginError, setDevLoginError] = useState<string | null>(null)
 
-  const handleOAuthLogin = async (provider: 'kakao' | 'google') => {
+  const handleGoogleLogin = async () => {
     try {
-      await authApi.signInWithOAuth(provider)
+      await authApi.signInWithOAuth('google')
     } catch (error: unknown) {
       console.error('Login error:', error)
       const err = error as { msg?: string; error_code?: string }
       const msg = err?.msg ?? (error as Error)?.message ?? ''
       if (msg.includes('provider is not enabled') || err?.error_code === 'validation_failed') {
-        alert(`${provider === 'google' ? '구글' : '카카오'} 로그인이 아직 설정되지 않았습니다.\n\nSupabase 대시보드 → Authentication → Providers에서 해당 제공자를 활성화해 주세요.\n자세한 방법은 docs/SUPABASE_OAUTH_SETUP.md를 참고하세요.`)
+        alert('구글 로그인이 아직 설정되지 않았습니다.\n\nSupabase 대시보드 → Authentication → Providers에서 Google을 활성화해 주세요.\n자세한 방법은 docs/SUPABASE_OAUTH_SETUP.md를 참고하세요.')
       } else {
         alert('로그인 초기화에 실패했습니다. Supabase 환경 변수를 확인해 주세요.')
       }
@@ -70,7 +58,7 @@ const Login: React.FC = () => {
   // 개발 테스트용 로그인
   const handleDevLogin = async () => {
     if (isLoading) return // 중복 클릭 방지
-    
+    setDevLoginError(null)
     setIsLoading(true)
     try {
       // 백엔드 OAuth 콜백을 통해 테스트 사용자 생성 및 토큰 발급
@@ -142,12 +130,20 @@ const Login: React.FC = () => {
       // 저장된 리다이렉트 경로 확인
       const redirectPath = getRedirectPath()
 
+      // 테스트 계정도 구글과 동일: 개인정보 동의 미완료 시 반드시 온보딩(동의 화면)으로 이동
+      if (data.consent_required) {
+        console.log('개인정보 동의 필요 → 온보딩으로 이동')
+        setPrivacyConsentGiven(false)
+        navigate('/onboarding', { replace: true })
+        return
+      }
+      setPrivacyConsentGiven(true)
+
       // next_step에 따라 라우팅
       if (data.next_step === 'profile_required' || data.next_step === 'life_profile_required') {
         console.log('온보딩으로 이동')
         navigate('/onboarding')
       } else if (redirectPath) {
-        // 원래 접근하려던 페이지로 리다이렉트
         console.log('원래 페이지로 리다이렉트:', redirectPath)
         navigate(redirectPath, { replace: true })
       } else {
@@ -156,13 +152,13 @@ const Login: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Dev login error:', error)
-      
-      // 네트워크 에러인 경우
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        alert('백엔드 서버에 연결할 수 없습니다.\n\n백엔드 서버가 실행 중인지 확인해주세요:\n- 터미널에서 "cd backend && npm run dev" 실행')
-      } else {
-        alert(`테스트 로그인에 실패했습니다.\n\n에러: ${error.message || '알 수 없는 오류'}\n\n콘솔을 확인해주세요.`)
-      }
+      const message = error?.message || (error instanceof Error ? error.message : '알 수 없는 오류')
+      const friendlyMessage =
+        error instanceof TypeError && message.includes('fetch')
+          ? '백엔드 서버에 연결할 수 없습니다. 터미널에서 "cd backend && npm run dev" 실행 후 다시 시도해주세요.'
+          : `테스트 로그인 실패: ${message}`
+      setDevLoginError(friendlyMessage)
+      alert(friendlyMessage)
     } finally {
       setIsLoading(false)
     }
@@ -186,24 +182,11 @@ const Login: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            {/* 카카오 로그인 버튼 */}
+            {/* 구글 로그인만 사용 (카카오는 추후 적용 예정) */}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => handleOAuthLogin('kakao')}
-              className="w-full touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-[#FEE500] text-[#191919] hover:bg-[#FDD835] focus:ring-[#FEE500] px-4 py-3 text-base"
-            >
-              <div className="flex items-center justify-center">
-                <KakaoLogo />
-                <span>카카오로 시작하기</span>
-              </div>
-            </motion.button>
-
-            {/* 구글 로그인 버튼 */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleOAuthLogin('google')}
+              onClick={handleGoogleLogin}
               className="w-full touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500 px-4 py-3 text-base"
             >
               <div className="flex items-center justify-center">
@@ -223,18 +206,23 @@ const Login: React.FC = () => {
               <p className="text-xs text-center text-gray-400 mb-3">
                 개발 테스트 모드
               </p>
-              <Button
+              <button
+                type="button"
                 onClick={handleDevLogin}
                 disabled={isLoading}
-                variant="outline"
-                className="w-full border-dashed"
-                aria-label="🔧 테스트 계정으로 로그인"
+                className="touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary px-4 py-2 text-base w-full border-dashed"
+                aria-label="테스트 계정으로 로그인"
               >
                 {isLoading ? '⏳ 로그인 중...' : '🔧 테스트 계정으로 로그인'}
-              </Button>
+              </button>
               {isLoading && (
                 <p className="text-xs text-center text-gray-400 mt-2">
                   백엔드 서버에 연결 중...
+                </p>
+              )}
+              {devLoginError && (
+                <p className="text-xs text-center text-red-600 dark:text-red-400 mt-2" role="alert">
+                  {devLoginError}
                 </p>
               )}
             </div>

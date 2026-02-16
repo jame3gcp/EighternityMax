@@ -27,8 +27,14 @@ const AuthCallback: React.FC = () => {
 
           // 저장된 리다이렉트 경로 확인
           const redirectPath = getRedirectPath()
-          console.log('[AuthCallback Page] 리다이렉트 경로:', { redirectPath, nextStep: response.next_step })
+          console.log('[AuthCallback Page] 리다이렉트 경로:', { redirectPath, nextStep: response.next_step, consent_required: response.consent_required })
 
+          // 개인정보 동의 미완료 시 반드시 온보딩(동의 화면)으로 이동
+          if (response.consent_required) {
+            console.log('[AuthCallback Page] 개인정보 동의 필요 → 온보딩으로 이동')
+            navigate('/onboarding', { replace: true })
+            return
+          }
           if (response.next_step === 'profile_required' || response.next_step === 'life_profile_required') {
             console.log('[AuthCallback Page] 온보딩으로 이동')
             navigate('/onboarding', { replace: true })

@@ -1,4 +1,6 @@
-# Supabase OAuth(구글/카카오) 로그인 설정
+# Supabase OAuth(구글) 로그인 설정
+
+> **참고:** 당분간 **구글(Google) 로그인만** 사용합니다. 카카오(Kakao)는 추후 적용 예정이며, 현재 앱에서는 비활성화되어 있습니다.
 
 "Unsupported provider: provider is not enabled" 오류는 **Supabase 프로젝트에서 해당 로그인 제공자(Provider)가 꺼져 있을 때** 발생합니다.
 
@@ -15,8 +17,8 @@
    - ⚠️ **중요**: `localhost:3000`이 아닌 **`localhost:5173`** (Vite 기본 포트) 또는 실제 프론트엔드 포트를 사용하세요.
 3. 왼쪽 메뉴 **Authentication** → **Providers** 이동
 4. 사용할 제공자 켜기:
-   - **Google**: 토글 ON → 아래 항목 입력
-   - **Kakao**: 토글 ON → 아래 항목 입력
+   - **Google**: 토글 ON → 아래 항목 입력 (현재 앱에서 사용 중)
+   - ~~Kakao~~: 추후 적용 예정 (현재 비활성화)
 
 ## 2. 구글(Google) 로그인 설정
 

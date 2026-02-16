@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import EnergyElementBadge from '@/components/EnergyElementBadge/EnergyElementBadge'
+import NaverMap from '@/components/NaverMap/NaverMap'
 import { spotApi } from '@/services/api'
 import { useLifeProfileStore } from '@/store/useLifeProfileStore'
 import type { Spot } from '@/types'
@@ -43,6 +44,8 @@ const EnergyMap: React.FC = () => {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose>('rest')
   const [spots, setSpots] = useState<Spot[]>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  const mapCenter = { lat: 37.5665, lng: 126.978 }
 
   const purposes: { id: Purpose; label: string; icon: string }[] = [
     { id: 'rest', label: '휴식', icon: '🧘' },
@@ -108,17 +111,12 @@ const EnergyMap: React.FC = () => {
       </Card>
 
       <Card className="mb-6">
-        <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          ) : (
-            <div className="text-center text-gray-500">
-              <div className="text-4xl mb-4">📍</div>
-              <p>지도 시각화 (Mock)</p>
-              <p className="text-sm mt-2">사용자 위치 기반 {selectedPurpose} 스팟 표시 중</p>
-            </div>
-          )}
-        </div>
+        <NaverMap
+          center={mapCenter}
+          spots={spots}
+          height="24rem"
+          isLoading={isLoading}
+        />
       </Card>
 
       <Card>
