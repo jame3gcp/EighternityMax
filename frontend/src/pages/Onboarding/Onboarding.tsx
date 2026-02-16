@@ -5,18 +5,22 @@ import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import Input from '@/components/Input/Input'
 import { motion } from 'framer-motion'
-import { profileApi, lifeProfileApi } from '@/services/api'
+import { profileApi, lifeProfileApi, userApi } from '@/services/api'
+import { useUserStore } from '@/store/useUserStore'
 import type { LifeProfile } from '@/types'
 
 interface OnboardingFormData {
+  calendarType: 'solar' | 'lunar'
   birthDate: string
   birthTime: string
+  lunarIntercalation?: boolean
   gender: 'male' | 'female' | 'other'
   region?: string
 }
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate()
+  const { setPrivacyConsentGiven } = useUserStore()
   const [step, setStep] = useState(0) // Step 0: 동의 화면 추가
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [profileId, setProfileId] = useState<string | null>(null)
@@ -24,7 +28,13 @@ const Onboarding: React.FC = () => {
   const [lifeProfile, setLifeProfile] = useState<LifeProfile | null>(null)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
   const [consentTerms, setConsentTerms] = useState(false)
-  const { register, handleSubmit, watch } = useForm<OnboardingFormData>()
+  const [consentSubmitting, setConsentSubmitting] = useState(false)
+  const [profileSubmitting, setProfileSubmitting] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<OnboardingFormData>({
+    defaultValues: { calendarType: 'solar' },
+  })
+  const calendarType = watch('calendarType')
 
   // AI 분석 진행 상태 확인
   useEffect(() => {
@@ -72,56 +82,85 @@ const Onboarding: React.FC = () => {
     }
   }, [jobId, step])
 
-  const handleConsent = () => {
-    if (consentPrivacy && consentTerms) {
-      setStep(1)
-    } else {
+  const handleConsent = async () => {
+    if (!consentPrivacy || !consentTerms) {
       alert('필수 동의 항목에 모두 동의해주세요.')
+      return
+    }
+    setConsentSubmitting(true)
+    try {
+      await userApi.saveConsent()
+      setPrivacyConsentGiven(true)
+      setStep(1)
+    } catch (error) {
+      console.error('동의 저장 실패:', error)
+      alert('동의 저장에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setConsentSubmitting(false)
     }
   }
 
   const onSubmit = async (data: OnboardingFormData) => {
-    // Step 1에서 폼 제출 처리
-    if (step === 1) {
-      try {
-        // 성별 변환 (M/F/X)
-        const genderMap: Record<string, 'M' | 'F' | 'X'> = {
-          male: 'M',
-          female: 'F',
-          other: 'X',
-        }
-
-        console.log('프로필 저장 시작:', data)
-
-        // 프로필 저장
-        const profileResponse = await profileApi.saveProfile({
-          birth_date: data.birthDate,
-          birth_time: data.birthTime || undefined,
-          gender: genderMap[data.gender],
-          region: data.region || undefined,
-        })
-
-        console.log('프로필 저장 완료:', profileResponse)
-
-        setProfileId(profileResponse.profile_id)
-        setStep(2) // Step 2: AI 분석 중 화면으로 이동
-        setIsAnalyzing(true)
-
-        // AI 분석 생성
-        console.log('AI 분석 생성 시작')
-        const jobResponse = await lifeProfileApi.generateLifeProfile(profileResponse.profile_id, {
-          detail_level: 'standard',
-          language: 'ko',
-        })
-
-        console.log('AI 분석 Job 생성 완료:', jobResponse)
-        setJobId(jobResponse.job_id)
-      } catch (error) {
-        console.error('Profile save error:', error)
-        alert(`프로필 저장에 실패했습니다.\n\n에러: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n콘솔을 확인해주세요.`)
-        setIsAnalyzing(false)
+    if (step !== 1) return
+    setProfileError(null)
+    setProfileSubmitting(true)
+    try {
+      const genderMap: Record<string, 'M' | 'F' | 'X'> = {
+        male: 'M',
+        female: 'F',
+        other: 'X',
       }
+
+      console.log('프로필 저장 시작 (만세력 변환 포함):', data)
+
+      const profileResponse = await profileApi.saveProfile({
+        birth_date: data.birthDate,
+        birth_time: data.birthTime || undefined,
+        gender: genderMap[data.gender],
+        region: data.region || undefined,
+        calendar_type: data.calendarType,
+        is_intercalation: data.calendarType === 'lunar' ? !!data.lunarIntercalation : undefined,
+      })
+
+      console.log('프로필 저장 완료:', profileResponse)
+
+      // 저장 직후 조회로 검증 (가입 시 입력 데이터가 이후 마이페이지에서 불러와지는지 확인)
+      if (profileResponse.profile) {
+        console.log('[온보딩] 저장 응답에 프로필 포함됨. 마이페이지에서 동일 데이터 조회 가능해야 함.')
+      } else {
+        const verify = await profileApi.getProfile()
+        if (verify) {
+          console.log('[온보딩] getProfile 검증 성공:', verify.birthDate, verify.gender)
+        } else {
+          console.warn('[온보딩] getProfile 검증 실패: 저장 직후 조회 시 프로필 없음. 백엔드 로그 확인 권장.')
+        }
+      }
+
+      setProfileId(profileResponse.profile_id)
+      setStep(2)
+      setIsAnalyzing(true)
+
+      const jobResponse = await lifeProfileApi.generateLifeProfile(profileResponse.profile_id, {
+        detail_level: 'standard',
+        language: 'ko',
+      })
+
+      console.log('AI 분석 Job 생성 완료:', jobResponse)
+      setJobId(jobResponse.job_id)
+    } catch (error) {
+      console.error('Profile save error:', error)
+      const message = error instanceof Error ? error.message : '알 수 없는 오류'
+      setProfileError(message)
+      alert(`프로필 저장에 실패했습니다.\n\n에러: ${message}\n\n콘솔을 확인해주세요.`)
+      setIsAnalyzing(false)
+    } finally {
+      setProfileSubmitting(false)
     }
+  }
+
+  const onFormError = (formErrors: Record<string, { message?: string }>) => {
+    const first = Object.values(formErrors)[0]
+    setProfileError(first?.message || '입력값을 확인해주세요.')
   }
 
   // Step 0: 개인정보 수집 및 이용 동의
@@ -192,10 +231,10 @@ const Onboarding: React.FC = () => {
 
         <Button
           onClick={handleConsent}
-          disabled={!consentPrivacy || !consentTerms}
+          disabled={!consentPrivacy || !consentTerms || consentSubmitting}
           className="w-full"
         >
-          동의하고 시작하기
+          {consentSubmitting ? '저장 중...' : '동의하고 시작하기'}
         </Button>
       </div>
     )
@@ -216,12 +255,56 @@ const Onboarding: React.FC = () => {
         </div>
 
         <Card>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <Input
-              label="생년월일"
-              type="date"
-              {...register('birthDate', { required: '생년월일을 입력해주세요.' })}
-            />
+          <form onSubmit={handleSubmit(onSubmit, onFormError)} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                양력 / 음력
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    value="solar"
+                    {...register('calendarType')}
+                    className="mr-2"
+                  />
+                  양력
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    value="lunar"
+                    {...register('calendarType')}
+                    className="mr-2"
+                  />
+                  음력
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {calendarType === 'solar' ? '생년월일을 양력으로 입력합니다.' : '생년월일을 음력으로 입력합니다.'}
+              </p>
+            </div>
+
+            <div>
+              <Input
+                label={calendarType === 'solar' ? '생년월일 (양력)' : '생년월일 (음력)'}
+                type="date"
+                {...register('birthDate', { required: '생년월일을 입력해주세요.' })}
+              />
+              {calendarType === 'lunar' && (
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('lunarIntercalation')}
+                    className="w-4 h-4 rounded text-primary"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">윤달</span>
+                </label>
+              )}
+              {errors.birthDate?.message && (
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1" role="alert">{errors.birthDate.message}</p>
+              )}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -243,7 +326,7 @@ const Onboarding: React.FC = () => {
                   <input
                     type="radio"
                     value="male"
-                    {...register('gender', { required: true })}
+                    {...register('gender', { required: '성별을 선택해주세요.' })}
                     className="mr-2"
                   />
                   남성
@@ -252,7 +335,7 @@ const Onboarding: React.FC = () => {
                   <input
                     type="radio"
                     value="female"
-                    {...register('gender', { required: true })}
+                    {...register('gender', { required: '성별을 선택해주세요.' })}
                     className="mr-2"
                   />
                   여성
@@ -261,12 +344,15 @@ const Onboarding: React.FC = () => {
                   <input
                     type="radio"
                     value="other"
-                    {...register('gender', { required: true })}
+                    {...register('gender', { required: '성별을 선택해주세요.' })}
                     className="mr-2"
                   />
                   기타
                 </label>
               </div>
+              {errors.gender?.message && (
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1" role="alert">{errors.gender.message}</p>
+              )}
             </div>
 
             <Input
@@ -275,9 +361,17 @@ const Onboarding: React.FC = () => {
               placeholder="예: 서울시 강남구"
             />
 
-            <Button type="submit" className="w-full">
-              내 에너지 분석 시작
-            </Button>
+            {profileError && (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">{profileError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={profileSubmitting}
+              className="touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-white hover:bg-primary-light focus:ring-primary px-4 py-2 text-base w-full"
+              aria-label="내 에너지 분석 시작"
+            >
+              {profileSubmitting ? '저장 중...' : '내 에너지 분석 시작'}
+            </button>
           </form>
         </Card>
       </div>

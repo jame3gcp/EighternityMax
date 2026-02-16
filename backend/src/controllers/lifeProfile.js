@@ -3,6 +3,7 @@ import { lifeProfiles, profiles, jobs } from '../models/schema.js';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../middleware/error.js';
 import { userController } from './user.js';
+import { generateFromProfile } from '../services/lifeProfileGenerator.js';
 
 export const lifeProfileController = {
   async generate(req, res, next) {
@@ -28,27 +29,7 @@ export const lifeProfileController = {
       });
 
       setTimeout(async () => {
-        const lpData = {
-          userId: internalId,
-          profileId: profile_id,
-          energyType: '활동형 리듬',
-          energyTypeEmoji: '🌊',
-          strengths: ['집중력', '창의성', '리더십'],
-          patterns: {
-            morning: { energy: 85, focus: 90, emotion: 75 },
-            afternoon: { energy: 70, focus: 65, emotion: 80 },
-            evening: { energy: 60, focus: 55, emotion: 70 },
-          },
-          cycleDescription: '오전 집중력이 높고 오후 회복 패턴을 보입니다.',
-          recommendations: [
-            '오전에 중요한 작업을 계획하세요',
-            '오후에는 휴식과 회복에 집중하세요',
-            '규칙적인 수면 패턴을 유지하세요',
-          ],
-          version: '1.0',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+        const lpData = generateFromProfile(profile);
 
         await db.transaction(async (tx) => {
           const existing = await tx.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, internalId) });

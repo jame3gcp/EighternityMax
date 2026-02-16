@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import jwt from 'jsonwebtoken'
+import { generateFromProfile } from './src/services/lifeProfileGenerator.js'
+import { solarToSaju, lunarToSaju } from './src/services/saju.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -130,7 +132,7 @@ app.post('/v1/auth/oauth/:provider/callback', (req, res) => {
   const isNewUser = !user
 
   if (isNewUser) {
-    // 새 사용자 생성
+    // 새 사용자 생성 (개인정보 동의는 null → 로그인 후 동의 화면 필수)
     user = {
       id: generateUserId(),
       provider,
@@ -139,11 +141,13 @@ app.post('/v1/auth/oauth/:provider/callback', (req, res) => {
       displayName: `${provider} 사용자`,
       createdAt: Date.now(),
       lastLoginAt: Date.now(),
+      privacyConsentAt: null,
     }
     data.users.push(user)
     saveData()
   } else {
     user.lastLoginAt = Date.now()
+    if (user.privacyConsentAt === undefined) user.privacyConsentAt = null
     saveData()
   }
 
@@ -187,6 +191,7 @@ app.post('/v1/auth/oauth/:provider/callback', (req, res) => {
       refresh_token: refreshToken,
     },
     next_step: nextStep,
+    consent_required: !user.privacyConsentAt,
   })
 })
 
@@ -252,7 +257,7 @@ app.post('/v1/auth/logout', authenticate, (req, res) => {
 
 // ===== 프로필/AI 생성 API (v1) =====
 
-// 프로필 조회
+// 프로필 조회 (saju 등 계산 결과 포함)
 app.get('/v1/users/me/profile', authenticate, (req, res) => {
   const profile = data.profiles.find(p => p.userId === req.userId)
   
@@ -267,43 +272,60 @@ app.get('/v1/users/me/profile', authenticate, (req, res) => {
     birthTime: profile.birthTime,
     gender: profile.gender,
     region: profile.region,
+    saju: profile.saju ?? null,
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   })
 })
 
-// 기본 정보 저장 (온보딩)
+// 기본 정보 저장 (온보딩) — calendar_type·is_intercalation 반영, saju 계산·저장
 app.post('/v1/users/me/profile', authenticate, (req, res) => {
-  const { birth_date, birth_time, gender, region } = req.body
+  const { birth_date, birth_time, gender, region, calendar_type = 'solar', is_intercalation } = req.body
 
   if (!birth_date || !gender) {
     return res.status(400).json({ error: 'birth_date and gender are required' })
   }
 
-  // 기존 프로필 확인
+  let saju = null
+  let canonicalBirthDate = birth_date
+
+  if (calendar_type === 'lunar') {
+    saju = lunarToSaju(birth_date, !!is_intercalation, birth_time || undefined, gender)
+    if (saju?.solar) {
+      const { year, month, day } = saju.solar
+      canonicalBirthDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+  } else {
+    saju = solarToSaju(birth_date, birth_time || undefined, gender)
+  }
+  if (saju) {
+    saju.calendarType = calendar_type
+    saju.isIntercalation = !!is_intercalation
+  }
+
   let profile = data.profiles.find(p => p.userId === req.userId)
 
   if (profile) {
-    // 업데이트
     profile = {
       ...profile,
-      birthDate: birth_date,
+      birthDate: canonicalBirthDate,
       birthTime: birth_time || null,
       gender,
       region: region || null,
+      saju: saju || undefined,
       updatedAt: Date.now(),
     }
     const index = data.profiles.findIndex(p => p.userId === req.userId)
     data.profiles[index] = profile
   } else {
-    // 새 프로필 생성
     profile = {
       profileId: `profile-${Date.now()}`,
       userId: req.userId,
-      birthDate: birth_date,
+      birthDate: canonicalBirthDate,
       birthTime: birth_time || null,
       gender,
       region: region || null,
+      saju: saju || undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }
@@ -345,28 +367,7 @@ app.post('/v1/users/me/life-profile/generate', authenticate, (req, res) => {
 
   // 비동기 처리 시뮬레이션 (실제로는 큐 시스템 사용)
   setTimeout(() => {
-    // AI 분석 결과 생성 (목업)
-    const lifeProfile = {
-      userId: req.userId,
-      profileId: profile_id,
-      energyType: '활동형 리듬',
-      energyTypeEmoji: '🌊',
-      strengths: ['집중력', '창의성', '리더십'],
-      patterns: {
-        morning: { energy: 85, focus: 90, emotion: 75 },
-        afternoon: { energy: 70, focus: 65, emotion: 80 },
-        evening: { energy: 60, focus: 55, emotion: 70 },
-      },
-      cycleDescription: '오전 집중력이 높고 오후 회복 패턴을 보입니다.',
-      recommendations: [
-        '오전에 중요한 작업을 계획하세요',
-        '오후에는 휴식과 회복에 집중하세요',
-        '규칙적인 수면 패턴을 유지하세요',
-      ],
-      version: '1.0',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
+    const lifeProfile = generateFromProfile({ ...profile, userId: req.userId, profileId: profile_id })
 
     // 기존 Life Profile 업데이트 또는 생성
     const existingIndex = data.lifeProfiles.findIndex(p => p.userId === req.userId)
@@ -470,6 +471,28 @@ app.get('/v1/users/me/daily-guide', authenticate, (req, res) => {
   }
 
   res.json(dailyGuide)
+})
+
+// ===== 사용자 API (v1: getMe / consent — 테스트 계정도 구글과 동일하게 동의 필수) =====
+app.get('/v1/users/me', authenticate, (req, res) => {
+  const user = data.users.find(u => u.id === req.userId)
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+  res.json({
+    ...user,
+    privacy_consent_given: !!user.privacyConsentAt,
+  })
+})
+
+app.post('/v1/users/me/consent', authenticate, (req, res) => {
+  const user = data.users.find(u => u.id === req.userId)
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+  user.privacyConsentAt = Date.now()
+  saveData()
+  res.json({ success: true, privacy_consent_given: true })
 })
 
 // ===== 사용자 API (기존 유지) =====
