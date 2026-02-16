@@ -230,80 +230,86 @@ const DevProfileTest: React.FC = () => {
             </div>
           )}
 
-          {profile.saju.cheonganRelation && Object.values(profile.saju.cheonganRelation).some((arr) => arr?.length) && (
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">천간 특수관계</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700">
-                      <th className="px-3 py-2 text-left">구분</th>
-                      <th className="px-3 py-2 text-left">연주</th>
-                      <th className="px-3 py-2 text-left">월주</th>
-                      <th className="px-3 py-2 text-left">일주</th>
-                      <th className="px-3 py-2 text-left">시주</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="px-3 py-2 font-medium">천간 합/冲</td>
-                      {(['year', 'month', 'day', 'hour'] as const).map((k) => (
-                        <td key={k} className="px-3 py-2">
-                          {profile.saju.cheonganRelation![k]?.length
-                            ? profile.saju.cheonganRelation![k].map((r, i) => (
-                                <span key={i}>{r.typeKo}{r.withStem} </span>
-                              ))
-                            : '-'}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
+          {profile.saju?.cheonganRelation && Object.values(profile.saju?.cheonganRelation ?? {}).some((arr: unknown) => Array.isArray(arr) && arr.length > 0) && (() => {
+            const saju = profile.saju
+            return (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">천간 특수관계</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700">
+                        <th className="px-3 py-2 text-left">구분</th>
+                        <th className="px-3 py-2 text-left">연주</th>
+                        <th className="px-3 py-2 text-left">월주</th>
+                        <th className="px-3 py-2 text-left">일주</th>
+                        <th className="px-3 py-2 text-left">시주</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="px-3 py-2 font-medium">천간 합/冲</td>
+                        {(['year', 'month', 'day', 'hour'] as const).map((k) => (
+                          <td key={k} className="px-3 py-2">
+                            {saju?.cheonganRelation?.[k]?.length
+                              ? (saju?.cheonganRelation?.[k] ?? []).map((r: { typeKo: string; withStem: string }, i: number) => (
+                                  <span key={i}>{r.typeKo}{r.withStem} </span>
+                                ))
+                              : '-'}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
-          {(profile.saju.sinsal12Pillar || profile.saju.sinsalCombined || profile.saju.sinsal12) && (
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">십이신살·신살 종합</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700">
-                      <th className="px-3 py-2 text-left">구분</th>
-                      <th className="px-3 py-2 text-left">연주</th>
-                      <th className="px-3 py-2 text-left">월주</th>
-                      <th className="px-3 py-2 text-left">일주</th>
-                      <th className="px-3 py-2 text-left">시주</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="px-3 py-2 font-medium">십이신살</td>
-                      {(['year', 'month', 'day', 'hour'] as const).map((p) => (
-                        <td key={p} className="px-3 py-2">
-                          {profile.saju.sinsal12?.[p]?.map((s) => s.ko).join(', ') ?? '-'}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr className="bg-gray-50/50 dark:bg-gray-800/50">
-                      <td className="px-3 py-2 font-medium">신살</td>
-                      {(['year', 'month', 'day', 'hour'] as const).map((p) => (
-                        <td key={p} className="px-3 py-2">
-                          {profile.saju.sinsalCombined?.[p]?.join(', ') ?? '-'}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
+          {(profile.saju?.sinsal12Pillar || profile.saju?.sinsalCombined || profile.saju?.sinsal12) && (() => {
+            const saju = profile.saju
+            return (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">십이신살·신살 종합</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700">
+                        <th className="px-3 py-2 text-left">구분</th>
+                        <th className="px-3 py-2 text-left">연주</th>
+                        <th className="px-3 py-2 text-left">월주</th>
+                        <th className="px-3 py-2 text-left">일주</th>
+                        <th className="px-3 py-2 text-left">시주</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="px-3 py-2 font-medium">십이신살</td>
+                        {(['year', 'month', 'day', 'hour'] as const).map((p) => (
+                          <td key={p} className="px-3 py-2">
+                            {saju?.sinsal12?.[p]?.map((s: { ko: string }) => s.ko).join(', ') ?? '-'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                        <td className="px-3 py-2 font-medium">신살</td>
+                        {(['year', 'month', 'day', 'hour'] as const).map((p) => (
+                          <td key={p} className="px-3 py-2">
+                            {saju?.sinsalCombined?.[p]?.join(', ') ?? '-'}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
-          {profile.saju.daeun?.steps?.length && (
+          {profile.saju?.daeun?.steps?.length && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">대운</h3>
-              {profile.saju.daeun.note && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{profile.saju.daeun.note}</p>}
+              {profile.saju?.daeun?.note && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{profile.saju.daeun.note}</p>}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg">
                   <thead>
@@ -317,7 +323,7 @@ const DevProfileTest: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.saju.daeun.steps.map((s, i) => (
+                    {profile.saju?.daeun?.steps.map((s, i) => (
                       <tr key={i} className="border-t border-gray-200 dark:border-gray-600">
                         <td className="px-3 py-2">{s.age ?? [7, 17, 27, 37, 47, 57, 67, 77, 87, 97][i]}세</td>
                         <td className="px-3 py-2 font-mono">{s.gapjaKo} ({s.gapja})</td>
@@ -333,7 +339,7 @@ const DevProfileTest: React.FC = () => {
             </div>
           )}
 
-          {profile.saju.seun?.length && (
+          {profile.saju?.seun?.length && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">세운(년운)</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">현재 연도 중심, 올해 행 강조.</p>
@@ -350,7 +356,7 @@ const DevProfileTest: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.saju.seun.map((s, i) => {
+                    {profile.saju?.seun.map((s: { year: number; gapjaKo: string; gapja: string; sipseong?: { ko: string } | null; sipseongJi?: { ko: string } | null; sinsal?: string | null; unseong12?: { ko: string } | null }, i: number) => {
                       const isCurrentYear = s.year === new Date().getFullYear();
                       return (
                         <tr
@@ -372,7 +378,7 @@ const DevProfileTest: React.FC = () => {
             </div>
           )}
 
-          {profile.saju.woleun?.length && (
+          {profile.saju?.woleun?.length && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">월운</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">당해년 기준, 12월→1월 순 (참조 사이트와 동일)</p>
@@ -389,7 +395,7 @@ const DevProfileTest: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...profile.saju.woleun]
+                    {[...(profile.saju?.woleun ?? [])]
                       .sort((a, b) => b.month - a.month)
                       .map((s) => (
                         <tr key={s.month} className="border-t border-gray-200 dark:border-gray-600">

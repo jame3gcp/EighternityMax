@@ -101,7 +101,7 @@ export interface Profile {
 /** ChatGPT 사주 상세 분석 결과 (저장 후 다른 메뉴에서 재사용) */
 export interface SajuAnalysisResult {
   /** 항목별 해석 (사주팔자, 오행, 십성, 12운성, 대운 등 전달된 각 항목에 대한 상세 해석) */
-  item_interpretations?: Record<string, string>
+  item_interpretations?: { [key: string]: string }
   summary?: string
   personality?: string
   strengths?: string[]
