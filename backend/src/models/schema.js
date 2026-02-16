@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, uniqueIndex, foreignKey, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, uniqueIndex, index, jsonb } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -8,6 +8,8 @@ export const users = pgTable('users', {
   displayName: text('display_name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at').defaultNow().notNull(),
+  /** 개인정보 수집·이용 동의 시각. null이면 미동의 → 서비스 메뉴 접근 불가 */
+  privacyConsentAt: timestamp('privacy_consent_at'),
 }, (table) => ({
   providerIdx: uniqueIndex('provider_idx').on(table.provider, table.providerUserId),
 }));
@@ -26,6 +28,8 @@ export const profiles = pgTable('profiles', {
   birthTime: text('birth_time'),
   gender: text('gender').notNull(),
   region: text('region'),
+  /** 만세력/명리학 변환 결과 (음력, 간지 등). 다른 기능의 기본정보로 활용 */
+  saju: jsonb('saju'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -66,3 +70,22 @@ export const records = pgTable('records', {
   memo: text('memo'),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
 });
+
+/** ChatGPT 사주 상세 분석 결과 (프로필 저장 시 자동 생성, 동일 사주는 재사용) */
+export const sajuAnalyses = pgTable('saju_analyses', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  profileId: text('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  sajuSignature: text('saju_signature').notNull(),
+  inputSaju: jsonb('input_saju'),
+  analysis: jsonb('analysis'),
+  model: text('model'),
+  promptVersion: text('prompt_version'),
+  status: text('status').notNull(), // 'queued' | 'done' | 'failed'
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  profileSignatureUnique: uniqueIndex('saju_analyses_profile_signature_idx').on(table.profileId, table.sajuSignature),
+  userUpdatedIdx: index('saju_analyses_user_updated_idx').on(table.userId, table.updatedAt),
+}));

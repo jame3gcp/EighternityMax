@@ -10,10 +10,14 @@
     "migrate": "node migrate-supabase.js",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:migrate-consent": "node scripts/migrate-privacy-consent.js",
+    "db:migrate-saju": "node scripts/migrate-saju.js",
+    "verify-saju": "node scripts/verify-saju.js",
     "test": "node test-api.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",
+    "openai": "^4.77.0",
     "better-sqlite3": "^12.6.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -25,6 +29,7 @@
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "korean-lunar-calendar": "^0.3.6",
     "postgres": "^3.4.8"
   },
   "devDependencies": {

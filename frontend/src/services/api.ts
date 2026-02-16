@@ -12,6 +12,7 @@ import type {
   Directions,
   Spot,
   MonthlyReport,
+  SajuAnalysisResponse,
 } from '@/types'
 import { mockDataService } from './mockData'
 import { supabase as supabaseClient } from './supabase'
@@ -273,8 +274,18 @@ class UserApi {
       createdAt: data.created_at || data.createdAt,
       ...(data.provider && { provider: data.provider }),
       ...(data.display_name && { displayName: data.display_name }),
+      ...(typeof data.privacy_consent_given === 'boolean' && { privacyConsentGiven: data.privacy_consent_given }),
     }
     return user
+  }
+
+  /** 개인정보 수집·이용 동의 저장. 동의 후에만 서비스 메뉴 접근 가능 */
+  async saveConsent(): Promise<{ success: boolean; privacy_consent_given: boolean }> {
+    if (isMockMode) {
+      return { success: true, privacy_consent_given: true }
+    }
+    const client = new ApiClient(V1_API_BASE)
+    return client.post<{ success: boolean; privacy_consent_given: boolean }>('/users/me/consent', {})
   }
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
@@ -343,7 +354,8 @@ class ReportApi {
 }
 
 class AuthApi {
-  async signInWithOAuth(provider: 'kakao' | 'google' | 'facebook' | 'apple') {
+  /** 당분간 구글 로그인만 사용 (카카오 등 추후 적용 예정) */
+  async signInWithOAuth(provider: 'google') {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: provider as Provider,
       options: {
@@ -419,9 +431,15 @@ class AuthApi {
 }
 
 class ProfileApi {
-  async getProfile(): Promise<Profile> {
-    const client = new ApiClient(V1_API_BASE)
-    return client.get<Profile>('/users/me/profile')
+  /** 프로필 조회. 없으면 null (404 시 개인정보 입력 유도용) */
+  async getProfile(): Promise<Profile | null> {
+    try {
+      const client = new ApiClient(V1_API_BASE)
+      return await client.get<Profile>('/users/me/profile')
+    } catch (error: any) {
+      if (error?.statusCode === 404) return null
+      throw error
+    }
   }
 
   async saveProfile(data: {
@@ -429,9 +447,29 @@ class ProfileApi {
     birth_time?: string
     gender: 'M' | 'F' | 'X'
     region?: string
-  }): Promise<{ profile_id: string; status: string; next_step: string }> {
+    calendar_type?: 'solar' | 'lunar'
+    is_intercalation?: boolean
+  }): Promise<{
+    profile_id: string
+    status: string
+    next_step: string
+    saju_analysis_id?: string | null
+    saju_analysis_status?: string
+    profile?: Profile | null
+  }> {
     const client = new ApiClient(V1_API_BASE)
     return client.post('/users/me/profile', data)
+  }
+
+  /** 사주 상세 분석 조회 (다른 메뉴에서 재사용) */
+  async getSajuAnalysis(): Promise<SajuAnalysisResponse | null> {
+    try {
+      const client = new ApiClient(V1_API_BASE)
+      return await client.get<SajuAnalysisResponse>('/users/me/saju-analysis')
+    } catch (error: any) {
+      if (error?.statusCode === 404) return null
+      throw error
+    }
   }
 }
 
