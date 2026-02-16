@@ -61,22 +61,22 @@ export interface Saju {
   /** 오행 분포 및 주별 오행 */
   ohang?: {
     distribution?: { 목?: number; 화?: number; 토?: number; 금?: number; 수?: number }
-    pillars?: Record<string, { stem?: { ko: string; zh: string }; branch?: { ko: string; zh: string } } | null>
+    pillars?: { [key: string]: { stem?: { ko: string; zh: string }; branch?: { ko: string; zh: string } } | null }
   }
   /** 십성 (연월일시) */
-  sipseong?: Record<string, { ko: string; zh: string; index: number } | null>
+  sipseong?: { [key: string]: { ko: string; zh: string; index: number } | null }
   /** 12운성 (연월일시) */
-  unseong12?: Record<string, { ko: string; zh: string; index: number } | null>
+  unseong12?: { [key: string]: { ko: string; zh: string; index: number } | null }
   /** 천간 특수관계 (합/冲) 주별 */
-  cheonganRelation?: Record<string, Array<{ type: string; typeKo: string; pair: number[]; withPillar: string; withStem: string }>>
+  cheonganRelation?: { [key: string]: Array<{ type: string; typeKo: string; pair: number[]; withPillar: string; withStem: string }> }
   /** 지지 형충회합 (지장간·방합·삼합·반합·가합·육합·암합·충·형·파·해·원진·귀문) 주별 */
-  jijiRelation?: Record<string, { jangan?: string | null; banghap?: string | null; samhap?: string | null; banhap?: string | null; gahap?: string | null; yukhap?: string | null; amhap?: string | null; chung?: string | null; hyeong?: string | null; pa?: string | null; hae?: string | null; wonjin?: string | null; gweemun?: string | null; ko: Record<string, string | null> } | null>
+  jijiRelation?: { [key: string]: { jangan?: string | null; banghap?: string | null; samhap?: string | null; banhap?: string | null; gahap?: string | null; yukhap?: string | null; amhap?: string | null; chung?: string | null; hyeong?: string | null; pa?: string | null; hae?: string | null; wonjin?: string | null; gweemun?: string | null; ko: { [k: string]: string | null } } | null }
   /** 십이신살 (역마/도화/화개 등) 주별 */
-  sinsal12?: Record<string, Array<{ ko: string; zh: string; type: string }> | null>
+  sinsal12?: { [key: string]: Array<{ ko: string; zh: string; type: string }> | null }
   /** 십이신살 행(참조): 주별 재살/지살/겁살 */
-  sinsal12Pillar?: Record<string, string | null>
+  sinsal12Pillar?: { [key: string]: string | null }
   /** 신살 종합 (월덕귀인 등) 주별 */
-  sinsalCombined?: Record<string, string[]>
+  sinsalCombined?: { [key: string]: string[] }
   /** 대운 (한국천문연구원 기준) */
   daeun?: { forward: boolean; steps: Array<{ age?: number; gapja: string; gapjaKo: string; sipseong?: { ko: string; zh: string } | null; sipseongJi?: { ko: string; zh: string } | null; sinsal?: string | null; unseong12?: { ko: string; zh: string } | null }>; note?: string }
   /** 세운(년운) */
@@ -100,6 +100,8 @@ export interface Profile {
 
 /** ChatGPT 사주 상세 분석 결과 (저장 후 다른 메뉴에서 재사용) */
 export interface SajuAnalysisResult {
+  /** 항목별 해석 (사주팔자, 오행, 십성, 12운성, 대운 등 전달된 각 항목에 대한 상세 해석) */
+  item_interpretations?: Record<string, string>
   summary?: string
   personality?: string
   strengths?: string[]

@@ -35,6 +35,7 @@ const MyPage: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [sajuAnalysis, setSajuAnalysis] = useState<SajuAnalysisResponse | null>(null)
   const [isLoadingSajuAnalysis, setIsLoadingSajuAnalysis] = useState(false)
+  const [isGeneratingSaju, setIsGeneratingSaju] = useState(false)
   const [showSajuDetail, setShowSajuDetail] = useState(false)
   const [connectionError, setConnectionError] = useState(false)
   const { register, handleSubmit, reset } = useForm<UserFormData>()
@@ -116,6 +117,43 @@ const MyPage: React.FC = () => {
     } finally {
       setIsLoadingSajuAnalysis(false)
     }
+  }
+
+  const POLL_INTERVAL_MS = 2000
+  const POLL_TIMEOUT_MS = 120000
+
+  const handleGenerateSajuAnalysis = async () => {
+    try {
+      await profileApi.generateSajuAnalysis()
+    } catch (e: any) {
+      const msg = e?.message || e?.body?.message || '분석 생성 요청에 실패했습니다.'
+      alert(msg)
+      return
+    }
+    setIsGeneratingSaju(true)
+    const deadline = Date.now() + POLL_TIMEOUT_MS
+    const poll = async () => {
+      if (Date.now() > deadline) {
+        setIsGeneratingSaju(false)
+        alert('분석 생성이 지연되고 있습니다. 잠시 후 새로고침해 주세요.')
+        return
+      }
+      try {
+        const data = await profileApi.getSajuAnalysis()
+        if (data && data.status !== 'not_found') {
+          setSajuAnalysis(data)
+          if (data.status === 'done' || data.status === 'failed') {
+            setIsGeneratingSaju(false)
+            if (data.status === 'done') setShowSajuDetail(true)
+            return
+          }
+        }
+      } catch (_) {
+        // ignore poll errors, retry
+      }
+      setTimeout(poll, POLL_INTERVAL_MS)
+    }
+    setTimeout(poll, POLL_INTERVAL_MS)
   }
 
   useEffect(() => {
@@ -806,18 +844,27 @@ const MyPage: React.FC = () => {
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />
               <p className="mt-2 text-sm text-gray-500">분석 정보 불러오는 중...</p>
             </div>
+          ) : isGeneratingSaju ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />
+              <p className="mt-2 text-sm text-gray-500">AI 분석 생성 중...</p>
+            </div>
           ) : !sajuAnalysis ? (
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400">
-                아직 분석이 없습니다. 프로필을 저장하면 자동으로 생성됩니다.
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                <p>아직 분석이 없습니다. 아래 버튼을 누르면 저장된 사주를 바탕으로 AI가 상세 분석을 생성합니다.</p>
+                <p className="text-xs">
+                  프로필을 아직 저장하지 않았다면, 이 카드 위쪽의 <strong>프로필</strong> 카드에서 생년월일·출생시간·성별을 입력한 뒤 <strong>프로필 저장</strong> 버튼을 눌러주세요.
+                </p>
               </div>
               <Button
                 type="button"
-                variant="outline"
+                variant="primary"
                 size="sm"
-                onClick={() => alert('프로필을 저장한 뒤 사용할 수 있습니다.')}
+                onClick={handleGenerateSajuAnalysis}
+                disabled={isGeneratingSaju}
               >
-                사주 상세 분석 보기
+                AI로 사주 상세 분석 생성하기
               </Button>
             </div>
           ) : sajuAnalysis.status === 'queued' ? (
@@ -851,6 +898,19 @@ const MyPage: React.FC = () => {
               </Button>
               {showSajuDetail && (
                 <div className="space-y-4 pt-2 border-t border-gray-200 dark:border-gray-600">
+                  {sajuAnalysis.analysis.item_interpretations && Object.keys(sajuAnalysis.analysis.item_interpretations).length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">항목별 해석</h3>
+                      <div className="space-y-3">
+                        {Object.entries(sajuAnalysis.analysis.item_interpretations).map(([key, value]) => (
+                          <div key={key} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{key}</h4>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{String(value)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {sajuAnalysis.analysis.summary && (
                     <div>
                       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">요약</h3>
