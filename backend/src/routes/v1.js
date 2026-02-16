@@ -13,6 +13,7 @@ router.use('/auth', authRoutes);
 router.get('/users/me', authenticate, userController.getMe);
 router.get('/users/me/profile', authenticate, userController.getProfile);
 router.get('/users/me/saju-analysis', authenticate, userController.getSajuAnalysis);
+router.post('/users/me/saju-analysis/generate', authenticate, userController.generateSajuAnalysis);
 router.post('/users/me/consent', authenticate, userController.saveConsent);
 router.post('/users/me/profile', authenticate, userController.saveProfile);
 router.delete('/users/me', authenticate, userController.deleteAccount);

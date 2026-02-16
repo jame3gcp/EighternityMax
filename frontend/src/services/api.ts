@@ -54,6 +54,16 @@ if (import.meta.env.DEV) {
 
 const isMockMode = import.meta.env.VITE_USE_MOCK === 'true'
 
+/** 네트워크/연결 실패(서버 미실행 등)로 fetch가 실패했는지 판별 */
+export function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') return true
+  const e = error as { code?: string; message?: string }
+  return e?.code === 'NETWORK_ERROR' || (typeof e?.message === 'string' && e.message.includes('서버에 연결할 수 없습니다'))
+}
+
+/** 네트워크 오류 시 사용자에게 보여줄 메시지 (공용) */
+export const NETWORK_ERROR_MESSAGE = '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해 주세요.'
+
 class TokenManager {
   private static ACCESS_TOKEN_KEY = 'access_token'
   private static REFRESH_TOKEN_KEY = 'refresh_token'
@@ -111,11 +121,21 @@ class ApiClient {
       })
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include',
-    })
+    let response: Response
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include',
+      })
+    } catch (e) {
+      const err = new Error(NETWORK_ERROR_MESSAGE) as Error & { code: string }
+      err.code = 'NETWORK_ERROR'
+      if (import.meta.env.DEV) {
+        console.warn('[API] 연결 실패:', this.baseUrl, e)
+      }
+      throw err
+    }
 
     if (response.status === 401 && accessToken) {
       try {
@@ -123,11 +143,18 @@ class ApiClient {
         const retryHeaders: Record<string, string> = { ...headers }
         retryHeaders['Authorization'] = `Bearer ${TokenManager.getAccessToken()}`
         
-        const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, {
-          ...options,
-          headers: retryHeaders,
-          credentials: 'include',
-        })
+        let retryResponse: Response
+        try {
+          retryResponse = await fetch(`${this.baseUrl}${endpoint}`, {
+            ...options,
+            headers: retryHeaders,
+            credentials: 'include',
+          })
+        } catch (e) {
+          const err = new Error(NETWORK_ERROR_MESSAGE) as Error & { code: string }
+          err.code = 'NETWORK_ERROR'
+          throw err
+        }
         if (!retryResponse.ok) {
           throw new Error(`API Error: ${retryResponse.statusText}`)
         }
@@ -461,15 +488,23 @@ class ProfileApi {
     return client.post('/users/me/profile', data)
   }
 
-  /** 사주 상세 분석 조회 (다른 메뉴에서 재사용) */
+  /** 사주 상세 분석 조회 (다른 메뉴에서 재사용). 없으면 200 + status: 'not_found' 또는 404 → null */
   async getSajuAnalysis(): Promise<SajuAnalysisResponse | null> {
     try {
       const client = new ApiClient(V1_API_BASE)
-      return await client.get<SajuAnalysisResponse>('/users/me/saju-analysis')
+      const data = await client.get<SajuAnalysisResponse | { status: 'not_found'; message?: string }>('/users/me/saju-analysis')
+      if (data && 'status' in data && data.status === 'not_found') return null
+      return data as SajuAnalysisResponse
     } catch (error: any) {
       if (error?.statusCode === 404) return null
       throw error
     }
+  }
+
+  /** 저장된 프로필의 사주로 OpenAI 사주 분석 생성 (버튼 클릭 시). 201 { id, status } */
+  async generateSajuAnalysis(): Promise<{ id: string; status: string }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post<{ id: string; status: string }>('/users/me/saju-analysis/generate', {})
   }
 }
 

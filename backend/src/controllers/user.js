@@ -305,7 +305,7 @@ export const userController = {
       });
       const row = rows[0];
       if (!row) {
-        return res.status(404).json({
+        return res.status(200).json({
           status: 'not_found',
           message: '사주 분석이 없습니다. 프로필을 저장하면 자동 생성됩니다.',
         });
@@ -318,6 +318,98 @@ export const userController = {
         error_message: row.errorMessage ?? undefined,
         updated_at: row.updatedAt?.getTime?.() ?? row.updatedAt,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** 저장된 프로필의 사주로 OpenAI 사주 분석 생성 (버튼 클릭 시 호출) */
+  async generateSajuAnalysis(req, res, next) {
+    try {
+      const internalId = await userController.getInternalUserId(req.supabaseId);
+      if (!internalId) throw new ApiError(404, 'User not found');
+
+      const profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, internalId) });
+      if (!profile) throw new ApiError(404, 'Profile not found');
+      if (!profile.saju) {
+        throw new ApiError(400, '사주 정보가 없습니다. 프로필에 생년월일·출생시간 등이 저장되어 있는지 확인해 주세요.');
+      }
+      if (!isOpenAIAvailable()) {
+        throw new ApiError(503, 'OpenAI 설정이 되어 있지 않습니다.');
+      }
+
+      const signature = computeSajuSignature(profile.saju, {
+        birthDate: profile.birthDate,
+        birthTime: profile.birthTime ?? undefined,
+        gender: profile.gender,
+        calendarType: profile.saju.calendarType || 'solar',
+        isIntercalation: !!profile.saju.isIntercalation,
+      });
+
+      const existing = await db.query.sajuAnalyses.findFirst({
+        where: and(
+          eq(sajuAnalyses.profileId, profile.id),
+          eq(sajuAnalyses.sajuSignature, signature)
+        ),
+      });
+
+      if (existing) {
+        return res.status(200).json({ id: existing.id, status: existing.status });
+      }
+
+      const analysisId = `saju-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      await db.insert(sajuAnalyses).values({
+        id: analysisId,
+        userId: internalId,
+        profileId: profile.id,
+        sajuSignature: signature,
+        inputSaju: profile.saju,
+        analysis: null,
+        model: null,
+        promptVersion: config.openaiPromptVersion || '1',
+        status: 'queued',
+        errorMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      setImmediate(async () => {
+        try {
+          const result = await analyzeSajuWithChatGPT(profile.saju);
+          if (result) {
+            await db.update(sajuAnalyses)
+              .set({
+                analysis: result.analysis,
+                model: result.model,
+                status: 'done',
+                errorMessage: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(sajuAnalyses.id, analysisId));
+          } else {
+            await db.update(sajuAnalyses)
+              .set({
+                status: 'failed',
+                errorMessage: 'OpenAI 분석 실패 또는 파싱 오류',
+                updatedAt: new Date(),
+              })
+              .where(eq(sajuAnalyses.id, analysisId));
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[generateSajuAnalysis] job failed:', err.message);
+          }
+          await db.update(sajuAnalyses)
+            .set({
+              status: 'failed',
+              errorMessage: err.message || 'Unknown error',
+              updatedAt: new Date(),
+            })
+            .where(eq(sajuAnalyses.id, analysisId));
+        }
+      });
+
+      return res.status(201).json({ id: analysisId, status: 'queued' });
     } catch (error) {
       next(error);
     }

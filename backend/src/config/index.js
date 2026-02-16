@@ -9,6 +9,6 @@ export const config = {
   dbPath: process.env.DB_PATH || './mock-data/data.json',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-  openaiTimeoutMs: parseInt(process.env.OPENAI_TIMEOUT_MS || '60000', 10),
+  openaiTimeoutMs: parseInt(process.env.OPENAI_TIMEOUT_MS || '180000', 10),
   openaiPromptVersion: '1',
 };
