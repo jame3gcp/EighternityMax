@@ -1,13 +1,75 @@
 import express from 'express';
+import { eq } from 'drizzle-orm';
 import { db } from '../models/db.js';
+import { users } from '../models/schema.js';
 import { authenticate } from '../middleware/auth.js';
+import { userController } from '../controllers/user.js';
 
 const router = express.Router();
 
-router.get('/users/me', authenticate, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(user);
+/** 현재 로그인 사용자의 내부 ID (개발: req.userId, 프로덕션: DB 조회) */
+async function getCurrentInternalId(req) {
+  if (req.userId) return req.userId;
+  return await userController.getInternalUserId(req.supabaseId);
+}
+
+router.get('/users/me', authenticate, async (req, res, next) => {
+  try {
+    const internalId = await getCurrentInternalId(req);
+    if (!internalId) return res.status(404).json({ error: 'User not found' });
+    const [user] = await db.select().from(users).where(eq(users.id, internalId));
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({
+      id: user.id,
+      name: user.displayName ?? user.email,
+      display_name: user.displayName,
+      email: user.email,
+      created_at: user.createdAt,
+      provider: user.provider,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/** 개인정보(이름·이메일) 수정 — 마이페이지 "정보 업데이트"에서 사용 */
+router.put('/users/:id', authenticate, async (req, res, next) => {
+  try {
+    const internalId = await getCurrentInternalId(req);
+    if (!internalId) return res.status(404).json({ error: 'User not found' });
+    if (internalId !== req.params.id) {
+      return res.status(403).json({ error: 'Forbidden', message: '본인만 수정할 수 있습니다.' });
+    }
+    const { name } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.displayName = name;
+    // 이메일은 OAuth 제공처 기준 읽기 전용 — 수정 불가
+    if (Object.keys(updates).length === 0) {
+      const [user] = await db.select().from(users).where(eq(users.id, req.params.id));
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      return res.json({
+        id: user.id,
+        name: user.displayName ?? user.email,
+        display_name: user.displayName,
+        email: user.email,
+        created_at: user.createdAt,
+        provider: user.provider,
+      });
+    }
+    await db.update(users).set(updates).where(eq(users.id, req.params.id));
+    const [updated] = await db.select().from(users).where(eq(users.id, req.params.id));
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+    res.json({
+      id: updated.id,
+      name: updated.displayName ?? updated.email,
+      display_name: updated.displayName,
+      email: updated.email,
+      created_at: updated.createdAt,
+      provider: updated.provider,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get('/cycles', (req, res) => {
