@@ -16,6 +16,26 @@ export const userController = {
     return user ? user.id : null;
   },
 
+  /** Supabase 유저가 우리 users 테이블에 없으면 생성 후 internal id 반환 (OAuth 콜백을 거치지 않은 요청 대응) */
+  async ensureUserFromSupabase(supabaseUser) {
+    const existing = await db.query.users.findFirst({
+      where: (u, { eq }) => eq(u.providerUserId, supabaseUser.id)
+    });
+    if (existing) return existing.id;
+    const provider = supabaseUser.app_metadata?.provider || 'google';
+    const id = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await db.insert(users).values({
+      id,
+      provider,
+      providerUserId: supabaseUser.id,
+      email: supabaseUser.email ?? null,
+      displayName: supabaseUser.user_metadata?.full_name || `${provider} 사용자`,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+    return id;
+  },
+
   async getMe(req, res, next) {
     try {
       const internalId = await userController.getInternalUserId(req.supabaseId);
