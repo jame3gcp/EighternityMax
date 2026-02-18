@@ -11,6 +11,9 @@ import legacyRoutes from './routes/legacy.js';
 
 const app = express();
 
+// Vercel 등 리버스 프록시 뒤에서 X-Forwarded-* 헤더 검증 오류 방지 (express-rate-limit 등)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ 
   origin: config.corsOrigin, 
@@ -56,6 +59,9 @@ app.get('/health', (req, res) => {
 
 // 404 핸들러 (알 수 없는 경로)
 app.use((req, res) => {
+  // #region agent log
+  console.log('[DEBUG 404]', { method: req.method, path: req.path, originalUrl: req.originalUrl });
+  // #endregion
   res.status(404).json({
     error: 'Not Found',
     message: `요청하신 경로를 찾을 수 없습니다: ${req.method} ${req.path}`,
