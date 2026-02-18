@@ -72,20 +72,24 @@ const getEnergyElementForGame = (gameId: string, lifeProfile?: any) => {
   }
 }
 
+const todayDateString = () => new Date().toISOString().split('T')[0]
+
 const LuckyHub: React.FC = () => {
   const { lifeProfile, fetchLifeProfile } = useLifeProfileStore()
   const [luckyNumbers, setLuckyNumbers] = useState<number[]>([])
+  const [alreadyGeneratedToday, setAlreadyGeneratedToday] = useState(false)
+  const [isLoadingToday, setIsLoadingToday] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
   const [gameStats, setGameStats] = useState<GameStats | SnakeGameStats | BalanceGameStats | null>(null)
   const [showGameResult, setShowGameResult] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [history, setHistory] = useState<{ date: string; type: string; numbers: number[] }[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   useEffect(() => {
-    // Life Profile 로드 (설명용)
-    // 에러가 발생해도 게임은 플레이할 수 있도록 처리
     if (!lifeProfile) {
       fetchLifeProfile().catch((error: any) => {
-        // 404는 정상적인 경우일 수 있음 (아직 프로필이 생성되지 않음)
         if (error?.message?.includes('Not Found') || error?.statusCode === 404) {
           console.log('Life Profile not found - this is normal if profile is not created yet')
         } else {
@@ -95,25 +99,68 @@ const LuckyHub: React.FC = () => {
     }
   }, [lifeProfile, fetchLifeProfile])
 
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setIsLoadingToday(true)
+      try {
+        const data = await luckyApi.getTodayLuckyNumbers()
+        if (!cancelled && data) {
+          setLuckyNumbers(data.numbers)
+          setAlreadyGeneratedToday(!!data.alreadyGeneratedToday)
+        } else if (!cancelled) {
+          setLuckyNumbers([])
+          setAlreadyGeneratedToday(false)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLuckyNumbers([])
+          setAlreadyGeneratedToday(false)
+        }
+      } finally {
+        if (!cancelled) setIsLoadingToday(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
   const generateLuckyNumbers = async () => {
     try {
       setIsLoading(true)
-      console.log('[LuckyHub] 행운 번호 생성 시작')
-      const data = await luckyApi.getLuckyNumbers('lotto')
-      console.log('[LuckyHub] 행운 번호 생성 성공:', data)
+      const data = await luckyApi.generateLuckyNumbers('lotto')
       setLuckyNumbers(data.numbers)
+      setAlreadyGeneratedToday(data.alreadyGeneratedToday)
+      if (data.alreadyGeneratedToday) {
+        alert('오늘 이미 행운 번호를 생성했습니다. 내일 다시 시도해 주세요.')
+      }
     } catch (error: any) {
       console.error('[LuckyHub] 행운 번호 생성 실패:', error)
-      console.error('[LuckyHub] 에러 상세:', {
-        message: error?.message,
-        statusCode: error?.statusCode,
-        statusText: error?.statusText,
-        stack: error?.stack,
-      })
-      // 사용자에게 에러 알림
-      alert(`행운 번호 생성에 실패했습니다.\n\n에러: ${error?.message || '알 수 없는 오류'}\n\n콘솔을 확인해주세요.`)
+      const status = error?.statusCode ?? ''
+      const body = error?.responseBody
+      const detail = body && typeof body === 'object' && 'message' in body ? (body as { message?: string }).message : (body && typeof body === 'object' && 'error' in body ? (body as { error?: string }).error : null)
+      const msg = [error?.message, detail, status ? `(HTTP ${status})` : ''].filter(Boolean).join(' ')
+      alert(`행운 번호 생성에 실패했습니다.\n\n${msg}`)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadHistory = async () => {
+    if (history.length > 0) {
+      setShowHistory((v) => !v)
+      return
+    }
+    setIsLoadingHistory(true)
+    try {
+      const list = await luckyApi.getLuckyNumbersHistory(30)
+      setHistory(list)
+      setShowHistory(true)
+    } catch (e) {
+      console.error('[LuckyHub] 히스토리 로드 실패:', e)
+      alert('이전 행운 번호를 불러오지 못했습니다.')
+    } finally {
+      setIsLoadingHistory(false)
     }
   }
 
@@ -166,12 +213,21 @@ const LuckyHub: React.FC = () => {
             </motion.div>
           ) : (
             <div className="py-12 text-gray-500">
-              행운 번호를 생성해보세요!
+              {isLoadingToday ? '불러오는 중...' : '행운 번호를 생성해보세요! (하루 1회)'}
             </div>
           )}
-          <div className="flex gap-3 justify-center">
-            <Button onClick={generateLuckyNumbers} disabled={isLoading}>
-              {isLoading ? '생성 중...' : luckyNumbers.length > 0 ? '다시 생성' : '행운 번호 생성'}
+          {alreadyGeneratedToday && (
+            <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">
+              오늘의 행운 번호를 이미 생성했습니다. 내일 다시 시도해 주세요.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Button
+              onClick={generateLuckyNumbers}
+              disabled={isLoading || isLoadingToday || alreadyGeneratedToday}
+              aria-label="행운 번호 생성"
+            >
+              {isLoading ? '생성 중...' : alreadyGeneratedToday ? '오늘 생성 완료 (내일 가능)' : luckyNumbers.length > 0 ? '다시 생성' : '행운 번호 생성'}
             </Button>
             {luckyNumbers.length > 0 && (
               <>
@@ -221,6 +277,45 @@ const LuckyHub: React.FC = () => {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
             * 본 번호는 오락용 추천이며, 실제 로또 당첨을 보장하지 않습니다.
           </p>
+
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadHistory}
+              disabled={isLoadingHistory}
+            >
+              {isLoadingHistory ? '불러오는 중...' : showHistory ? '이전 행운 번호 접기' : '이전 행운 번호 보기'}
+            </Button>
+            {showHistory && (
+              <div className="mt-4 space-y-3 max-h-64 overflow-y-auto">
+                {history.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">저장된 이력이 없습니다.</p>
+                ) : (
+                  history.map((item) => (
+                    <div
+                      key={item.date}
+                      className="flex flex-wrap items-center gap-2 text-sm py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                    >
+                      <span className="font-medium text-gray-700 dark:text-gray-300 shrink-0">
+                        {item.date === todayDateString() ? '오늘' : item.date}
+                      </span>
+                      <span className="flex gap-1.5 flex-wrap">
+                        {item.numbers.map((n, i) => (
+                          <span
+                            key={i}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/20 text-primary dark:bg-primary/30 dark:text-primary font-medium"
+                          >
+                            {n}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 

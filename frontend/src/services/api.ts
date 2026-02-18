@@ -19,22 +19,21 @@ import { supabase as supabaseClient } from './supabase'
 import type { Provider } from '@supabase/supabase-js'
 
 // API Base URL 설정
-// - 개발 환경: localhost 또는 환경 변수 값
-// - 프로덕션 환경: 환경 변수가 없으면 상대 경로 사용 (Vercel과 같은 도메인)
+// - VITE_API_URL 이 있으면 해당 백엔드 서버 사용.
+// - 프로덕션: 백엔드가 별도 도메인에 있으면 반드시 VITE_API_URL 설정 (Vercel env에 추가 후 재배포).
+//   설정하지 않으면 같은 도메인(프론트 호스트)으로 요청해 /api/* 호출 시 404 발생.
+// - 개발: 기본값 localhost:3001
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL
-  
-  // 환경 변수가 명시적으로 설정되어 있으면 사용
+
   if (envUrl && envUrl.trim() !== '') {
     return envUrl
   }
-  
-  // 프로덕션 환경에서는 상대 경로 사용 (Vercel과 같은 도메인)
+
   if (import.meta.env.PROD) {
-    return '' // 빈 문자열 = 상대 경로 → /v1/...
+    return '' // 상대 경로 (백엔드가 같은 도메인일 때만 유효)
   }
-  
-  // 개발 환경에서는 localhost 기본값
+
   return 'http://localhost:3001'
 }
 
@@ -364,11 +363,90 @@ class SpotApi {
   }
 }
 
+/** 행운 번호 단일 조회 응답 (오늘/특정일) */
+export interface LuckyDrawResponse {
+  date: string
+  type: string
+  numbers: number[]
+  message?: string
+  disclaimer?: string
+  alreadyGeneratedToday?: boolean
+}
+
+/** 행운 번호 생성 응답 (201 또는 409 시 동일 형식) */
+export interface LuckyGenerateResponse {
+  alreadyGeneratedToday: boolean
+  date: string
+  type: string
+  numbers: number[]
+}
+
+/** 행운 번호 히스토리 항목 */
+export interface LuckyDrawHistoryItem {
+  date: string
+  type: string
+  numbers: number[]
+}
+
 class LuckyApi {
-  async getLuckyNumbers(type: 'lotto' | 'normal' = 'lotto', date?: string): Promise<{ numbers: number[]; message: string; disclaimer: string }> {
+  /** 오늘 생성된 행운 번호 조회. 없으면 null (404). */
+  async getTodayLuckyNumbers(): Promise<LuckyDrawResponse | null> {
     const client = new ApiClient(V1_API_BASE)
-    const query = `?type=${type}${date ? `&date=${date}` : ''}`
-    return client.get<{ numbers: number[]; message: string; disclaimer: string }>(`/users/me/lucky-numbers${query}`)
+    try {
+      return await client.get<LuckyDrawResponse>('/users/me/lucky-numbers')
+    } catch (e: any) {
+      if (e?.statusCode === 404) return null
+      throw e
+    }
+  }
+
+  /** 행운 번호 생성 (오늘 1회). 이미 생성됐으면 409 body 반환 + alreadyGeneratedToday: true */
+  async generateLuckyNumbers(type: 'lotto' | 'normal' = 'lotto'): Promise<LuckyGenerateResponse> {
+    const token = TokenManager.getAccessToken()
+    const url = `${V1_API_BASE}/users/me/lucky-numbers`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ type }),
+      credentials: 'include',
+    })
+    const data = await res.json().catch(() => ({})) as { date?: string; type?: string; numbers?: number[] }
+    if (res.status === 409) {
+      return {
+        alreadyGeneratedToday: true,
+        date: data.date ?? '',
+        type: data.type ?? 'lotto',
+        numbers: Array.isArray(data.numbers) ? data.numbers : [],
+      }
+    }
+    if (!res.ok) {
+      const msg = (data as { message?: string; error?: string })?.message ?? (data as { error?: string })?.error ?? res.statusText || `HTTP ${res.status}`
+      const err = new Error(msg) as Error & { statusCode: number; responseBody?: unknown }
+      err.statusCode = res.status
+      err.responseBody = data
+      throw err
+    }
+    return {
+      alreadyGeneratedToday: false,
+      date: data.date ?? '',
+      type: data.type ?? 'lotto',
+      numbers: Array.isArray(data.numbers) ? data.numbers : [],
+    }
+  }
+
+  /** 과거 행운 번호 목록 (날짜 내림차순) */
+  async getLuckyNumbersHistory(limit = 30): Promise<LuckyDrawHistoryItem[]> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get<LuckyDrawHistoryItem[]>(`/users/me/lucky-numbers/history?limit=${limit}`)
+  }
+
+  /** 특정 날짜 행운 번호 조회 (히스토리/과거일용). 없으면 404 throw */
+  async getLuckyNumbersByDate(date: string): Promise<LuckyDrawResponse> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get<LuckyDrawResponse>(`/users/me/lucky-numbers?date=${encodeURIComponent(date)}`)
   }
 }
 

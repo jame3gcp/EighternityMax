@@ -1,5 +1,6 @@
 import { supabase } from '../models/db.js';
 import { ApiError } from './error.js';
+import { userController } from '../controllers/user.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -25,9 +26,19 @@ export const authenticate = async (req, res, next) => {
     if (error || !user) {
       return next(new ApiError(401, 'Invalid token'));
     }
-    
+
     req.supabaseId = user.id;
     req.userEmail = user.email;
+    // OAuth 콜백을 거치지 않은 요청도 동작하도록, DB에 사용자 없으면 생성 후 userId 설정
+    let internalId = await userController.getInternalUserId(user.id);
+    if (!internalId) {
+      try {
+        internalId = await userController.ensureUserFromSupabase(user);
+      } catch (ensureErr) {
+        console.error('Auth ensureUser error:', ensureErr?.message);
+      }
+    }
+    if (internalId) req.userId = internalId;
     next();
   } catch (error) {
     console.error('Auth error:', error.message);
