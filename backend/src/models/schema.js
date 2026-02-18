@@ -89,3 +89,15 @@ export const sajuAnalyses = pgTable('saju_analyses', {
   profileSignatureUnique: uniqueIndex('saju_analyses_profile_signature_idx').on(table.profileId, table.sajuSignature),
   userUpdatedIdx: index('saju_analyses_user_updated_idx').on(table.userId, table.updatedAt),
 }));
+
+/** 행운 번호 추천: 사용자·날짜당 1회만 저장 (1일 1회 제한) */
+export const luckyNumberDraws = pgTable('lucky_number_draws', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  type: text('type').notNull(),
+  numbers: jsonb('numbers').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userDateUnique: uniqueIndex('lucky_number_draws_user_date_idx').on(table.userId, table.date),
+}));
