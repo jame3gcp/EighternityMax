@@ -423,7 +423,7 @@ class LuckyApi {
       }
     }
     if (!res.ok) {
-      const msg = (data as { message?: string; error?: string })?.message ?? (data as { error?: string })?.error ?? res.statusText || `HTTP ${res.status}`
+      const msg = (data as { message?: string; error?: string })?.message ?? (data as { error?: string })?.error ?? (res.statusText || `HTTP ${res.status}`)
       const err = new Error(msg) as Error & { statusCode: number; responseBody?: unknown }
       err.statusCode = res.status
       err.responseBody = data
