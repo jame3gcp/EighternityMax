@@ -20,10 +20,16 @@ function getCorsOrigin() {
   if (nodeEnv !== 'production') {
     return process.env.CORS_ORIGIN || true;
   }
-  const raw = process.env.CORS_ORIGIN;
+  let raw = process.env.CORS_ORIGIN;
   if (!raw || String(raw).trim() === '') {
-    console.error('FATAL: CORS_ORIGIN must be set in production (comma-separated list of allowed origins).');
-    process.exit(1);
+    // Vercel: 동일 도메인 배포 시 VERCEL_URL로 기본 허용 (프론트/백엔드 같은 호스트)
+    const vercelUrl = process.env.VERCEL_URL;
+    if (vercelUrl && String(vercelUrl).trim() !== '') {
+      raw = `https://${vercelUrl.trim()},https://eighternity-max.vercel.app`;
+    } else {
+      console.error('FATAL: CORS_ORIGIN must be set in production (comma-separated list of allowed origins).');
+      process.exit(1);
+    }
   }
   return raw
     .split(',')
