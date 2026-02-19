@@ -208,7 +208,7 @@ const SiteContentEditorModal: React.FC<SiteContentEditorModalProps> = ({ content
               <Button
                 variant={status === 'active' ? 'primary' : 'secondary'}
                 className="flex-1"
-                disabled={isSaving || !title || !contentMarkdown || !version || (status === 'active' && contentId && status === 'active' && false /* disable logic if needed */)}
+                disabled={Boolean(isSaving || !title || !contentMarkdown || !version || (status === 'active' && contentId && false /* disable logic if needed */))}
                 onClick={handleSave}
               >
                 {isSaving ? '저장 중...' : status === 'active' && contentId && status !== 'active' ? '업데이트 및 게시' : '저장하기'}

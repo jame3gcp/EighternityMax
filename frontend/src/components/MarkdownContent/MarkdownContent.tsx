@@ -43,12 +43,11 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, className = 
   const markdown = raw.trim() ? plainTextToMarkdown(raw) : raw
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      className={className}
-    >
-      {markdown}
-    </ReactMarkdown>
+    <div className={className}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {markdown}
+      </ReactMarkdown>
+    </div>
   )
 }
 
