@@ -76,10 +76,21 @@ export const authController = {
       // 일반 provider는 Supabase 사용
       if (!access_token) throw new ApiError(400, 'access_token is required from Supabase Auth');
 
-      // Supabase 환경 변수 확인
-      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        console.error('[auth] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
-        throw new ApiError(503, 'Server auth config missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+      // 프로덕션 필수 환경 변수 조기 검사 (503으로 명확히 반환)
+      if (process.env.NODE_ENV === 'production') {
+        const missing = [];
+        if (!process.env.SUPABASE_URL?.trim()) missing.push('SUPABASE_URL');
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+        if (!process.env.DATABASE_URL?.trim()) missing.push('DATABASE_URL');
+        if (missing.length) {
+          console.error('[auth] Missing env in production:', missing.join(', '));
+          throw new ApiError(503, `Server config missing. In Vercel set: ${missing.join(', ')}.`);
+        }
+      } else {
+        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          console.error('[auth] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+          throw new ApiError(503, 'Server auth config missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+        }
       }
 
       const { data: { user }, error: supabaseError } = await supabase.auth.getUser(access_token);
@@ -161,8 +172,9 @@ export const authController = {
         next(error);
         return;
       }
-      console.error('[auth] oauthCallback unexpected error:', error?.message || error);
-      next(error);
+      const msg = error?.message ?? (typeof error === 'string' ? error : 'OAuth callback failed');
+      console.error('[auth] oauthCallback unexpected error:', msg, error);
+      next(new ApiError(500, msg));
     }
   },
 

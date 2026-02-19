@@ -2,7 +2,14 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const message = (err && typeof err.message === 'string' && err.message.trim() !== '')
+    ? err.message
+    : 'Internal Server Error';
+
+  // 프로덕션에서도 원인 로깅 (Vercel 로그에 남김)
+  if (!isDev && statusCode >= 500) {
+    console.error('[errorHandler]', statusCode, message, err?.stack || err);
+  }
 
   // 개발 환경에서 에러 로깅
   if (isDev) {
