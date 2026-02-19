@@ -13,7 +13,16 @@ const __dirname = dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production'
+const isProduction = process.env.NODE_ENV === 'production'
+const devSecret = 'dev-secret-key-change-in-production'
+const JWT_SECRET = (() => {
+  const raw = process.env.JWT_SECRET
+  if (isProduction && (!raw || String(raw).trim() === '' || raw === devSecret)) {
+    console.error('FATAL: JWT_SECRET must be set to a secure, non-default value in production.')
+    process.exit(1)
+  }
+  return raw && String(raw).trim() !== '' ? raw : devSecret
+})()
 
 app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())

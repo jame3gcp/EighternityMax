@@ -4,6 +4,7 @@ import { useUIStore } from '@/store/useUIStore'
 import { useUserStore } from '@/store/useUserStore'
 import { authApi } from '@/services/api'
 import { userNavItems, adminNavItems } from '@/data/navItems'
+import LogoIcon from '@/components/LogoIcon/LogoIcon'
 
 interface HeaderProps {
   isAdminView?: boolean
@@ -35,8 +36,8 @@ const Header: React.FC<HeaderProps> = ({ isAdminView = false }) => {
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-md border-b ${isAdminView ? 'border-red-200 dark:border-red-900/30' : 'border-gray-200 dark:border-gray-700'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
-            {/* 모바일 & 태블릿: 메뉴 토글 버튼 (xl 미만) */}
+          <div className="flex items-center xl:-ml-[70px]">
+            {/* 모바일 & 태블릿: 메뉴 토글 버튼 (xl 미만) / PC: 로고·타이틀 왼쪽 70px (arbitrary value로 적용 보장) */}
             <button
               onClick={toggleSidebar}
               className="xl:hidden touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -47,6 +48,7 @@ const Header: React.FC<HeaderProps> = ({ isAdminView = false }) => {
               </svg>
             </button>
             <Link to={isAdminView ? "/admin" : "/"} className="ml-2 xl:ml-0 flex items-center gap-2">
+              <LogoIcon variant="b" className="h-8 w-8 text-primary dark:text-primary-light" />
               <h1 className="text-xl font-bold text-primary dark:text-primary-light">Eighternity</h1>
               {isAdminView && (
                 <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Admin</span>
@@ -54,8 +56,8 @@ const Header: React.FC<HeaderProps> = ({ isAdminView = false }) => {
             </Link>
           </div>
           
-          {/* 데스크탑: 상단 네비게이션 (xl 이상) */}
-          <nav className="hidden xl:flex space-x-1" role="navigation" aria-label="메인 네비게이션">
+          {/* 데스크탑: 상단 네비게이션 (xl 이상) — 로고와 겹치지 않도록 왼쪽 여백 */}
+          <nav className="hidden xl:flex xl:ml-8 space-x-1" role="navigation" aria-label="메인 네비게이션">
             {navItems.map((item) => (
               <Link
                 key={item.path}

@@ -1,5 +1,6 @@
 import express from 'express';
 import { adminController } from '../controllers/admin.js';
+import { siteContentController } from '../controllers/siteContent.js';
 import { authenticate } from '../middleware/auth.js';
 import { verifyAdmin } from '../middleware/admin.js';
 import { db } from '../models/db.js';
@@ -55,5 +56,9 @@ router.get('/analytics/behavior', adminController.getBehaviorStats);
 router.get('/rankings', adminController.getRankings);
 router.get('/rankings/settings', adminController.getRankingSettings);
 router.patch('/rankings/settings', adminController.updateRankingSettings);
+
+router.get('/site-contents', siteContentController.listVersions);
+router.post('/site-contents', siteContentController.create);
+router.patch('/site-contents/:id', siteContentController.update);
 
 export default router;
