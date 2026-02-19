@@ -377,43 +377,37 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onGameEnd, onClose, energyElement
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [gameState, handleStart])
 
-  // 터치 제스처 처리
+  // 터치 제스처 처리 (스와이프 시 배경 스크롤 방지를 위해 preventDefault)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (gameState !== 'playing' && gameState !== 'ready') return
-    
     const touch = e.touches[0]
     touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    e.preventDefault()
   }, [gameState])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) return
-    
     const touch = e.changedTouches[0]
     const deltaX = touch.clientX - touchStartRef.current.x
     const deltaY = touch.clientY - touchStartRef.current.y
     const minSwipeDistance = 30
-    
     if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
+      touchStartRef.current = null
       return
     }
-    
     let newDirection: Direction | null = null
-    
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      // 수평 스와이프
       newDirection = deltaX > 0 ? 'right' : 'left'
     } else {
-      // 수직 스와이프
       newDirection = deltaY > 0 ? 'down' : 'up'
     }
-    
     if (newDirection) {
+      e.preventDefault()
       setNextDirection(newDirection)
       if (gameState === 'ready') {
         handleStart()
       }
     }
-    
     touchStartRef.current = null
   }, [gameState, handleStart])
 
@@ -475,26 +469,28 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onGameEnd, onClose, energyElement
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
-        style={{ 
-          maxHeight: '90vh',
-          height: '90vh',
-          minHeight: '600px'
-        }}
-      >
-        {/* 헤더 */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[min(90vh,calc(100dvh-2rem))] min-h-[280px]"
+        >
+        {/* 헤더: 항상 보이도록 sticky + 배경 */}
+        <div className="sticky top-0 z-10 shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             에너지 모으기 지렁이
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            ✕
-          </Button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="창 닫기"
+            className="flex items-center gap-1.5 shrink-0 px-3 min-h-[44px] justify-center rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 font-medium"
+          >
+            <span className="text-lg font-bold leading-none" aria-hidden>✕</span>
+            <span className="text-sm">닫기</span>
+          </button>
         </div>
 
         {/* 게임 영역 */}
@@ -583,15 +579,15 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onGameEnd, onClose, energyElement
                   </div>
                 </div>
 
-                {/* Canvas 영역 */}
+                {/* Canvas 영역: touch-none으로 스와이프 시 배경 스크롤 방지(모바일) */}
                 <div
-                  className="flex-1 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden relative shadow-inner"
+                  className="flex-1 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden relative shadow-inner touch-none select-none"
                   style={{ 
                     minHeight: '300px',
                     flex: '1 1 0%',
                     display: 'flex',
                     flexDirection: 'column',
-                    position: 'relative'
+                    position: 'relative',
                   }}
                   onTouchStart={handleTouchStart}
                   onTouchEnd={handleTouchEnd}
@@ -641,11 +637,12 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onGameEnd, onClose, energyElement
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   최종 점수: {stats.score.toLocaleString()}점
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   )
 }

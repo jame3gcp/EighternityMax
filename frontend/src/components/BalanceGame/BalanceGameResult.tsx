@@ -2,11 +2,14 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Button from '@/components/Button/Button'
 import EnergyElementBadge from '@/components/EnergyElementBadge/EnergyElementBadge'
+import GameResultRankingSection from '@/components/GameResultRanking/GameResultRankingSection'
 import type { BalanceGameStats } from './BalanceGame.utils'
 
 interface BalanceGameResultProps {
   stats: BalanceGameStats
   energyElement?: { id?: string; korean?: string; color?: string }
+  gameId?: string
+  score?: number
   onPlayAgain: () => void
   onClose: () => void
 }
@@ -14,9 +17,12 @@ interface BalanceGameResultProps {
 const BalanceGameResult: React.FC<BalanceGameResultProps> = ({
   stats,
   energyElement,
+  gameId = 'balance',
+  score: scoreProp,
   onPlayAgain,
   onClose,
 }) => {
+  const score = scoreProp ?? stats.score
   const getGrade = (score: number): { grade: string; message: string; color: string } => {
     if (score >= 400) return { grade: 'S+', message: '완벽한 균형감각!', color: 'text-purple-500' }
     if (score >= 300) return { grade: 'S', message: '탁월한 성과!', color: 'text-blue-500' }
@@ -150,6 +156,10 @@ const BalanceGameResult: React.FC<BalanceGameResultProps> = ({
             {analysisMessage}
           </p>
         </motion.div>
+      )}
+
+      {gameId && (
+        <GameResultRankingSection gameId={gameId} score={score} />
       )}
 
       <motion.div

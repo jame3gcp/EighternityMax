@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/useUserStore'
 import { getRedirectPath } from '@/components/ProtectedRoute/ProtectedRoute'
 
 const isDev = import.meta.env.DEV
+const AUTH_REDIRECT_KEY = 'auth_redirect_path'
 
 // 구글 로고 컴포넌트 (당분간 구글 기반 로그인만 사용, 카카오는 추후 적용 예정)
 const GoogleLogo = () => (
@@ -55,10 +56,15 @@ const Login: React.FC = () => {
     }
   }
 
-  // 개발 테스트용 로그인
-  const handleDevLogin = async () => {
+  // 개발 테스트용 로그인 (로그인 후 이동할 경로를 옵션으로 지정)
+  const handleDevLogin = async (redirectAfterLogin?: string) => {
     if (isLoading) return // 중복 클릭 방지
     setDevLoginError(null)
+    if (redirectAfterLogin) {
+      sessionStorage.setItem(AUTH_REDIRECT_KEY, redirectAfterLogin)
+    } else {
+      sessionStorage.removeItem(AUTH_REDIRECT_KEY)
+    }
     setIsLoading(true)
     try {
       // 백엔드 OAuth 콜백을 통해 테스트 사용자 생성 및 토큰 발급
@@ -206,15 +212,26 @@ const Login: React.FC = () => {
               <p className="text-xs text-center text-gray-400 mb-3">
                 개발 테스트 모드
               </p>
-              <button
-                type="button"
-                onClick={handleDevLogin}
-                disabled={isLoading}
-                className="touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary px-4 py-2 text-base w-full border-dashed"
-                aria-label="테스트 계정으로 로그인"
-              >
-                {isLoading ? '⏳ 로그인 중...' : '🔧 테스트 계정으로 로그인'}
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDevLogin()}
+                  disabled={isLoading}
+                  className="touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary px-4 py-2.5 text-base w-full border-dashed"
+                  aria-label="테스트 계정으로 로그인 후 홈으로"
+                >
+                  {isLoading ? '⏳ 로그인 중...' : '🔧 테스트 로그인 → 홈'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDevLogin('/admin')}
+                  disabled={isLoading}
+                  className="touch-target font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white focus:ring-amber-500 px-4 py-2.5 text-base w-full border-dashed dark:border-amber-500"
+                  aria-label="테스트 계정으로 로그인 후 Admin으로"
+                >
+                  🛠️ 테스트 로그인 → Admin
+                </button>
+              </div>
               {isLoading && (
                 <p className="text-xs text-center text-gray-400 mt-2">
                   백엔드 서버에 연결 중...

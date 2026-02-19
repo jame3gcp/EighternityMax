@@ -2,13 +2,19 @@ import express from 'express';
 import authRoutes from './auth.js';
 import userRoutes from './user.js';
 import jobRoutes from './job.js';
+import adminRoutes from './admin.js';
 import { userController } from '../controllers/user.js';
 import { luckyController } from '../controllers/lucky.js';
+import { analyticsController } from '../controllers/analytics.js';
+import { gameScoresController } from '../controllers/gameScores.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
+router.use('/admin', adminRoutes);
+
+router.post('/analytics/log', authenticate, analyticsController.logActivity);
 
 // /users/me, /users/me/profile 등은 하위 라우터보다 먼저 등록 (404 방지)
 router.get('/users/me', authenticate, userController.getMe);
@@ -22,6 +28,9 @@ router.delete('/users/me', authenticate, userController.deleteAccount);
 router.get('/users/me/lucky-numbers/history', authenticate, luckyController.getLuckyNumbersHistory);
 router.get('/users/me/lucky-numbers', authenticate, luckyController.getLuckyNumbers);
 router.post('/users/me/lucky-numbers', authenticate, luckyController.postLuckyNumbers);
+router.post('/users/me/game-scores', authenticate, gameScoresController.submit);
+router.get('/users/me/game-scores/rankings/all', authenticate, gameScoresController.getRankingAll);
+router.get('/users/me/game-scores/rankings', authenticate, gameScoresController.getRanking);
 
 router.use('/users', userRoutes);
 router.use('/jobs', jobRoutes);

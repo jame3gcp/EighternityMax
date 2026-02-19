@@ -1,13 +1,1 @@
-{
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1769184515883,
-      "tag": "0000_overjoyed_arachne",
-      "breakpoints": true
-    }
-  ]
-}
+{"version":"7","dialect":"postgresql","entries":[{"idx":0,"version":"7","when":1769184515883,"tag":"0000_overjoyed_arachne","breakpoints":true},{"idx":1,"version":"7","when":1771403930889,"tag":"0001_colossal_bloodaxe","breakpoints":true},{"idx":2,"version":"7","when":1771414848655,"tag":"0002_closed_frank_castle","breakpoints":true},{"idx":3,"version":"7","when":1771417578130,"tag":"0003_stormy_the_watchers","breakpoints":true},{"idx":4,"version":"7","when":1771424500000,"tag":"0004_game_scores_rankings","breakpoints":true}]}

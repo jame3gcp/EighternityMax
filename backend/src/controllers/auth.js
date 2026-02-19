@@ -21,15 +21,16 @@ export const authController = {
 
         const isNewUser = !localUser;
         if (isNewUser) {
-          const [newUser] = await db.insert(users).values({
-            id: `user-dev-${Date.now()}`,
-            provider: 'dev',
-            providerUserId: providerUserId,
-            email: 'test@example.com',
-            displayName: '테스트 사용자',
-            createdAt: new Date(),
-            lastLoginAt: new Date(),
-          }).returning();
+           const [newUser] = await db.insert(users).values({
+             id: `user-dev-${Date.now()}`,
+             provider: 'dev',
+             providerUserId: providerUserId,
+             email: 'test@example.com',
+             displayName: '테스트 사용자',
+             role: 'user',
+             createdAt: new Date(),
+             lastLoginAt: new Date(),
+           }).returning();
           localUser = newUser;
         } else {
           await db.update(users)
@@ -56,6 +57,8 @@ export const authController = {
             user_id: localUser.id,
             is_new_user: isNewUser,
             provider: 'dev',
+            display_name: localUser.displayName ?? null,
+            email: localUser.email ?? null,
           },
           tokens: {
             access_token: devAccessToken,
@@ -96,15 +99,16 @@ export const authController = {
       const isNewUser = !localUser;
       if (isNewUser) {
         try {
-          const [newUser] = await db.insert(users).values({
-            id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            provider,
-            providerUserId: user.id,
-            email: user.email ?? null,
-            displayName: user.user_metadata?.full_name || `${provider} 사용자`,
-            createdAt: new Date(),
-            lastLoginAt: new Date(),
-          }).returning();
+           const [newUser] = await db.insert(users).values({
+             id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+             provider,
+             providerUserId: user.id,
+             email: user.email ?? null,
+             displayName: user.user_metadata?.full_name || `${provider} 사용자`,
+             role: 'user',
+             createdAt: new Date(),
+             lastLoginAt: new Date(),
+           }).returning();
           localUser = newUser;
         } catch (insertErr) {
           console.error('[auth] DB insert users error:', insertErr.message);
@@ -139,6 +143,8 @@ export const authController = {
           supabase_id: user.id,
           is_new_user: isNewUser,
           provider,
+          display_name: localUser.displayName ?? null,
+          email: localUser.email ?? null,
         },
         tokens: {
           access_token,

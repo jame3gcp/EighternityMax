@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import Input from '@/components/Input/Input'
+import RegionSelect from '@/components/RegionSelect/RegionSelect'
 import { motion } from 'framer-motion'
 import { profileApi, lifeProfileApi, userApi } from '@/services/api'
 import { useUserStore } from '@/store/useUserStore'
@@ -31,10 +32,11 @@ const Onboarding: React.FC = () => {
   const [consentSubmitting, setConsentSubmitting] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<OnboardingFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<OnboardingFormData>({
     defaultValues: { calendarType: 'solar' },
   })
   const calendarType = watch('calendarType')
+  const regionValue = watch('region') ?? ''
 
   // AI 분석 진행 상태 확인
   useEffect(() => {
@@ -355,10 +357,11 @@ const Onboarding: React.FC = () => {
               )}
             </div>
 
-            <Input
+            <RegionSelect
               label="거주 지역 (선택사항)"
-              {...register('region')}
-              placeholder="예: 서울시 강남구"
+              value={regionValue}
+              onChange={(v) => setValue('region', v)}
+              disabled={profileSubmitting}
             />
 
             {profileError && (

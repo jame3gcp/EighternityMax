@@ -25,6 +25,7 @@ export interface User {
   name: string
   email: string
   createdAt: number
+  role?: string
   provider?: string
   displayName?: string
   /** 개인정보 수집·이용 동의 여부. false면 서비스 메뉴 접근 불가 */
@@ -36,6 +37,10 @@ export interface OAuthCallbackResponse {
     user_id: string
     is_new_user: boolean
     provider: string
+    /** OAuth/DB 기준 표시 이름 (콜백 응답에 포함 시 로그인 직후 표시) */
+    display_name?: string | null
+    /** OAuth/DB 기준 이메일 (읽기 전용) */
+    email?: string | null
   }
   tokens: {
     access_token: string

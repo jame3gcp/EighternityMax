@@ -2,11 +2,14 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Button from '@/components/Button/Button'
 import EnergyElementBadge from '@/components/EnergyElementBadge/EnergyElementBadge'
+import GameResultRankingSection from '@/components/GameResultRanking/GameResultRankingSection'
 import type { GameStats } from './WaveGame.utils'
 
 interface WaveGameResultProps {
   stats: GameStats
   energyElement?: any
+  gameId?: string
+  score?: number
   onPlayAgain: () => void
   onClose: () => void
 }
@@ -14,9 +17,12 @@ interface WaveGameResultProps {
 const WaveGameResult: React.FC<WaveGameResultProps> = ({
   stats,
   energyElement,
+  gameId = 'wave',
+  score: scoreProp,
   onPlayAgain,
   onClose,
 }) => {
+  const score = scoreProp ?? stats.score
   // 점수에 따른 등급 계산
   const getGrade = (score: number): { grade: string; message: string; color: string } => {
     if (score >= 10000) {
@@ -203,6 +209,10 @@ const WaveGameResult: React.FC<WaveGameResultProps> = ({
             {analysisMessage}
           </p>
         </motion.div>
+      )}
+
+      {gameId && (
+        <GameResultRankingSection gameId={gameId} score={score} />
       )}
 
       {/* 액션 버튼 */}

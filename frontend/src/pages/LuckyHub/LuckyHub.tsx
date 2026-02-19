@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import EnergyElementBadge from '@/components/EnergyElementBadge/EnergyElementBadge'
 import { motion, AnimatePresence } from 'framer-motion'
-import { luckyApi } from '@/services/api'
+import { luckyApi, gameScoresApi } from '@/services/api'
 import { useLifeProfileStore } from '@/store/useLifeProfileStore'
 import WaveGame from '@/components/WaveGame/WaveGame'
 import WaveGameResult from '@/components/WaveGame/WaveGameResult'
@@ -14,6 +15,9 @@ import type { SnakeGameStats } from '@/components/SnakeGame/SnakeGame.utils'
 import BalanceGame from '@/components/BalanceGame/BalanceGame'
 import BalanceGameResult from '@/components/BalanceGame/BalanceGameResult'
 import type { BalanceGameStats } from '@/components/BalanceGame/BalanceGame.utils'
+import FlowConnectGame from '@/components/FlowConnectGame/FlowConnectGame'
+import FlowConnectGameResult from '@/components/FlowConnectGame/FlowConnectGameResult'
+import type { FlowConnectGameStats } from '@/components/FlowConnectGame/FlowConnectGame.utils'
 
 // 오늘 날짜 기반으로 활성화된 Energy Element 계산
 const getTodayEnergyElement = (lifeProfile?: any) => {
@@ -67,6 +71,11 @@ const getEnergyElementForGame = (gameId: string, lifeProfile?: any) => {
       return elements.find((e: any) => e.id === 'growth') ||
              elements.find((e: any) => e.id === 'vitality') ||
              elements.sort((a: any, b: any) => b.value - a.value)[0]
+    case 'flow-connect':
+      // 에너지 흐름 연결 → Flow, Clarity (순서·흐름)
+      return elements.find((e: any) => e.id === 'flow') ||
+             elements.find((e: any) => e.id === 'clarity') ||
+             elements.sort((a: any, b: any) => b.value - a.value)[0]
     default:
       return null
   }
@@ -81,7 +90,7 @@ const LuckyHub: React.FC = () => {
   const [isLoadingToday, setIsLoadingToday] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
-  const [gameStats, setGameStats] = useState<GameStats | SnakeGameStats | BalanceGameStats | null>(null)
+  const [gameStats, setGameStats] = useState<GameStats | SnakeGameStats | BalanceGameStats | FlowConnectGameStats | null>(null)
   const [showGameResult, setShowGameResult] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<{ date: string; type: string; numbers: number[] }[]>([])
@@ -99,31 +108,49 @@ const LuckyHub: React.FC = () => {
     }
   }, [lifeProfile, fetchLifeProfile])
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setIsLoadingToday(true)
-      try {
-        const data = await luckyApi.getTodayLuckyNumbers()
-        if (!cancelled && data) {
+  const loadIdRef = useRef(0)
+  const load = useCallback(async () => {
+    const loadId = loadIdRef.current + 1
+    loadIdRef.current = loadId
+    const clientToday = todayDateString()
+    setIsLoadingToday(true)
+    try {
+      const data = await luckyApi.getTodayLuckyNumbers(clientToday)
+      if (loadId !== loadIdRef.current) return
+      if (data) {
+        const isStale = data.date < clientToday
+        if (isStale) {
+          setLuckyNumbers([])
+          setAlreadyGeneratedToday(false)
+        } else {
           setLuckyNumbers(data.numbers)
           setAlreadyGeneratedToday(!!data.alreadyGeneratedToday)
-        } else if (!cancelled) {
-          setLuckyNumbers([])
-          setAlreadyGeneratedToday(false)
         }
-      } catch (e) {
-        if (!cancelled) {
-          setLuckyNumbers([])
-          setAlreadyGeneratedToday(false)
-        }
-      } finally {
-        if (!cancelled) setIsLoadingToday(false)
+      } else {
+        setLuckyNumbers([])
+        setAlreadyGeneratedToday(false)
       }
+    } catch (e) {
+      if (loadId === loadIdRef.current) {
+        setLuckyNumbers([])
+        setAlreadyGeneratedToday(false)
+      }
+    } finally {
+      if (loadId === loadIdRef.current) setIsLoadingToday(false)
     }
-    load()
-    return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [load])
 
   const generateLuckyNumbers = async () => {
     try {
@@ -136,11 +163,7 @@ const LuckyHub: React.FC = () => {
       }
     } catch (error: any) {
       console.error('[LuckyHub] 행운 번호 생성 실패:', error)
-      const status = error?.statusCode ?? ''
-      const body = error?.responseBody
-      const detail = body && typeof body === 'object' && 'message' in body ? (body as { message?: string }).message : (body && typeof body === 'object' && 'error' in body ? (body as { error?: string }).error : null)
-      const msg = [error?.message, detail, status ? `(HTTP ${status})` : ''].filter(Boolean).join(' ')
-      alert(`행운 번호 생성에 실패했습니다.\n\n${msg}`)
+      alert(`행운 번호 생성에 실패했습니다.\n\n${error?.message || '알 수 없는 오류'}`)
     } finally {
       setIsLoading(false)
     }
@@ -170,7 +193,7 @@ const LuckyHub: React.FC = () => {
     { id: 'snake', name: '에너지 모으기 지렁이', description: '지렁이를 조작하여 에너지를 모으세요', icon: '🐍', available: true },
     { id: 'balance', name: '밸런스 컨트롤', description: '에너지 게이지를 중앙에 유지하세요', icon: '⚖️', available: true },
     { id: 'choice', name: '선택형 시뮬레이션', description: '상황을 선택하면 오늘 타입을 분석합니다', icon: '🎯', available: false },
-    { id: 'flow-connect', name: '에너지 흐름 연결', description: '점들을 순서대로 연결하세요', icon: '🔗', available: false },
+    { id: 'flow-connect', name: '에너지 흐름 연결', description: '점들을 순서대로 연결하세요', icon: '🔗', available: true },
     { id: 'color-match', name: '에너지 색상 구분', description: '목표 색상을 빠르게 찾아 탭하세요', icon: '🎨', available: false },
     { id: 'direction-tap', name: '에너지 방향 맞추기', description: '화살표 방향을 따라 탭하세요', icon: '➡️', available: false },
     { id: 'sequence-memory', name: '에너지 시퀀스 기억', description: '패턴을 기억하여 재현하세요', icon: '🧠', available: false },
@@ -321,7 +344,15 @@ const LuckyHub: React.FC = () => {
 
       {/* 미니 게임 섹션 */}
       <Card>
-        <h2 className="text-xl font-bold mb-4">미니 게임</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">미니 게임</h2>
+          <Link
+            to="/lucky-hub/rankings"
+            className="text-sm text-primary hover:underline font-medium"
+          >
+            이번 주 랭킹 보기
+          </Link>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {games.map((game) => {
             const gameElement = getEnergyElementForGame(game.id, lifeProfile)
@@ -369,6 +400,7 @@ const LuckyHub: React.FC = () => {
               onGameEnd={(stats: GameStats) => {
                 setGameStats(stats)
                 setShowGameResult(true)
+                gameScoresApi.submit('wave', stats.score).catch(() => {})
               }}
               onClose={() => {
                 setSelectedGame(null)
@@ -383,6 +415,7 @@ const LuckyHub: React.FC = () => {
               onGameEnd={(stats: SnakeGameStats) => {
                 setGameStats(stats)
                 setShowGameResult(true)
+                gameScoresApi.submit('snake', stats.score).catch(() => {})
               }}
               onClose={() => {
                 setSelectedGame(null)
@@ -397,6 +430,7 @@ const LuckyHub: React.FC = () => {
               onGameEnd={(stats: BalanceGameStats) => {
                 setGameStats(stats)
                 setShowGameResult(true)
+                gameScoresApi.submit('balance', stats.score).catch(() => {})
               }}
               onClose={() => {
                 setSelectedGame(null)
@@ -404,6 +438,21 @@ const LuckyHub: React.FC = () => {
                 setGameStats(null)
               }}
               energyElement={getEnergyElementForGame('balance', lifeProfile)}
+            />
+          )}
+          {selectedGame === 'flow-connect' && !showGameResult && (
+            <FlowConnectGame
+              onGameEnd={(stats: FlowConnectGameStats) => {
+                setGameStats(stats)
+                setShowGameResult(true)
+                gameScoresApi.submit('flow-connect', stats.score).catch(() => {})
+              }}
+              onClose={() => {
+                setSelectedGame(null)
+                setShowGameResult(false)
+                setGameStats(null)
+              }}
+              energyElement={getEnergyElementForGame('flow-connect', lifeProfile)}
             />
           )}
         </AnimatePresence>
@@ -421,6 +470,8 @@ const LuckyHub: React.FC = () => {
                 <WaveGameResult
                   stats={gameStats as GameStats}
                   energyElement={getEnergyElementForGame('wave', lifeProfile)}
+                  gameId="wave"
+                  score={(gameStats as GameStats).score}
                   onPlayAgain={() => {
                     setShowGameResult(false)
                     setGameStats(null)
@@ -447,6 +498,8 @@ const LuckyHub: React.FC = () => {
                 <SnakeGameResult
                   stats={gameStats as SnakeGameStats}
                   energyElement={getEnergyElementForGame('snake', lifeProfile)}
+                  gameId="snake"
+                  score={(gameStats as SnakeGameStats).score}
                   onPlayAgain={() => {
                     setShowGameResult(false)
                     setGameStats(null)
@@ -473,6 +526,8 @@ const LuckyHub: React.FC = () => {
                 <BalanceGameResult
                   stats={gameStats as BalanceGameStats}
                   energyElement={getEnergyElementForGame('balance', lifeProfile)}
+                  gameId="balance"
+                  score={(gameStats as BalanceGameStats).score}
                   onPlayAgain={() => {
                     setShowGameResult(false)
                     setGameStats(null)
@@ -488,10 +543,38 @@ const LuckyHub: React.FC = () => {
               </motion.div>
             </div>
           )}
+          {showGameResult && gameStats && selectedGame === 'flow-connect' && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <FlowConnectGameResult
+                  stats={gameStats as FlowConnectGameStats}
+                  energyElement={getEnergyElementForGame('flow-connect', lifeProfile)}
+                  gameId="flow-connect"
+                  score={(gameStats as FlowConnectGameStats).score}
+                  onPlayAgain={() => {
+                    setShowGameResult(false)
+                    setGameStats(null)
+                    setSelectedGame(null)
+                    setTimeout(() => setSelectedGame('flow-connect'), 100)
+                  }}
+                  onClose={() => {
+                    setSelectedGame(null)
+                    setShowGameResult(false)
+                    setGameStats(null)
+                  }}
+                />
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
 
         {/* 다른 게임들은 아직 준비 중 */}
-        {selectedGame && selectedGame !== 'wave' && selectedGame !== 'snake' && selectedGame !== 'balance' && (
+        {selectedGame && selectedGame !== 'wave' && selectedGame !== 'snake' && selectedGame !== 'balance' && selectedGame !== 'flow-connect' && (
           <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
             <p className="text-gray-700 dark:text-gray-300 mb-4">
               {games.find(g => g.id === selectedGame)?.name} 게임은 곧 출시될 예정입니다.

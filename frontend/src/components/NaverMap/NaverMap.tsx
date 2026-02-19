@@ -15,6 +15,8 @@ export interface NaverMapProps {
   className?: string
   /** 로딩 여부 (스팟 로딩 중일 때 스피너 등 외부 제어) */
   isLoading?: boolean
+  /** 지도 클릭 이벤트 핸들러 */
+  onMapClick?: (lat: number, lng: number) => void
 }
 
 /**
@@ -27,6 +29,7 @@ const NaverMap: React.FC<NaverMapProps> = ({
   height = '24rem',
   className = '',
   isLoading = false,
+  onMapClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<naver.maps.Map | null>(null)
@@ -88,6 +91,13 @@ const NaverMap: React.FC<NaverMapProps> = ({
 
         mapRef.current = map
         infoWindowRef.current = new maps.InfoWindow({ maxWidth: 280 })
+
+        if (onMapClick) {
+          maps.Event.addListener(map, 'click', (e: any) => {
+            onMapClick(e.coord.lat(), e.coord.lng())
+          })
+        }
+
         setStatus('ready')
       })
       .catch((err) => {

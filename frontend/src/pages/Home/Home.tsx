@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useCycleStore } from '@/store/useCycleStore'
 import { useUserStore } from '@/store/useUserStore'
@@ -14,9 +14,10 @@ import { dailyGuideApi } from '@/services/api'
 import type { DailyGuide } from '@/types'
 
 const Home: React.FC = () => {
+  const navigate = useNavigate()
   const { currentCycle, fetchCycle, isLoading } = useCycleStore()
   const { user } = useUserStore()
-  const { lifeProfile, fetchLifeProfile, isLoading: isLoadingLifeProfile } = useLifeProfileStore()
+  const { lifeProfile, fetchLifeProfile, isLoading: isLoadingLifeProfile, error: lifeProfileError } = useLifeProfileStore()
   const [dailyGuide, setDailyGuide] = useState<DailyGuide | null>(null)
   const [isLifeProfileExpanded, setIsLifeProfileExpanded] = useState(() => {
     const hasSeen = localStorage.getItem('hasSeenLifeProfileSummary')
@@ -84,6 +85,14 @@ const Home: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {lifeProfileError && (
+        <div
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          role="alert"
+        >
+          <p className="font-medium">{lifeProfileError}</p>
+        </div>
+      )}
       {/* 환영 메시지 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -281,7 +290,7 @@ const Home: React.FC = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         <motion.div variants={itemVariants}>
-          <Card hover onClick={() => window.location.href = '/interpretation'}>
+          <Card hover onClick={() => navigate('/interpretation')}>
             <div className="text-center">
               <div className="text-4xl mb-2">📖</div>
               <h3 className="font-semibold mb-2">사이클 해석</h3>
@@ -292,7 +301,7 @@ const Home: React.FC = () => {
           </Card>
         </motion.div>
         <motion.div variants={itemVariants}>
-          <Card hover onClick={() => window.location.href = '/record'}>
+          <Card hover onClick={() => navigate('/record')}>
             <div className="text-center">
               <div className="text-4xl mb-2">📝</div>
               <h3 className="font-semibold mb-2">기록하기</h3>
@@ -303,7 +312,7 @@ const Home: React.FC = () => {
           </Card>
         </motion.div>
         <motion.div variants={itemVariants}>
-          <Card hover onClick={() => window.location.href = '/guide'}>
+          <Card hover onClick={() => navigate('/guide')}>
             <div className="text-center">
               <div className="text-4xl mb-2">📚</div>
               <h3 className="font-semibold mb-2">가이드</h3>

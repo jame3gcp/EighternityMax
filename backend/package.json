@@ -10,6 +10,7 @@
     "migrate": "node migrate-supabase.js",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:migrate-game-rankings": "node scripts/run-game-rankings-migration.js",
     "db:migrate-consent": "node scripts/migrate-privacy-consent.js",
     "db:migrate-saju": "node scripts/migrate-saju.js",
     "verify-saju": "node scripts/verify-saju.js",

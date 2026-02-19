@@ -1,5 +1,6 @@
 import { db } from '../models/db.js';
-import { ApiError } from '../middleware/error.js';
+import { records } from '../models/schema.js';
+import { and, eq, like, asc } from 'drizzle-orm';
 
 export const reportController = {
   async getMonthlyReport(req, res, next) {
@@ -9,12 +10,15 @@ export const reportController = {
       const targetMonth = month || (now.getMonth() + 1).toString().padStart(2, '0');
       const targetYear = year || now.getFullYear().toString();
       const monthStr = `${targetYear}-${targetMonth}`;
+      const internalId = req.userId;
+      if (!internalId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
 
-      const logs = db.prepare(`
-        SELECT * FROM records 
-        WHERE user_id = ? AND date LIKE ? 
-        ORDER BY date ASC
-      `).all(req.userId, `${monthStr}%`);
+      const logs = await db.query.records.findMany({
+        where: and(eq(records.userId, internalId), like(records.date, `${monthStr}%`)),
+        orderBy: [asc(records.date)],
+      });
 
       if (logs.length === 0) {
         return res.json({
@@ -24,9 +28,9 @@ export const reportController = {
         });
       }
 
-      const avgEnergy = logs.reduce((acc, log) => acc + log.energy, 0) / logs.length;
-      const avgEmotion = logs.reduce((acc, log) => acc + log.emotion, 0) / logs.length;
-      const avgFocus = logs.reduce((acc, log) => acc + log.focus, 0) / logs.length;
+      const avgEnergy = logs.reduce((acc, log) => acc + (log.energy ?? 0), 0) / logs.length;
+      const avgEmotion = logs.reduce((acc, log) => acc + (log.emotion ?? 0), 0) / logs.length;
+      const avgFocus = logs.reduce((acc, log) => acc + (log.focus ?? 0), 0) / logs.length;
 
       const summary = {
         month: monthStr,

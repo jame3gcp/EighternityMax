@@ -3,13 +3,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/useUIStore'
 import { useUserStore } from '@/store/useUserStore'
 import { authApi } from '@/services/api'
-import Button from '../Button/Button'
+import { userNavItems, adminNavItems } from '@/data/navItems'
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  isAdminView?: boolean
+}
+
+const Header: React.FC<HeaderProps> = ({ isAdminView = false }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { toggleSidebar, toggleDarkMode, isDarkMode } = useUIStore()
-  const { clearUser } = useUserStore()
+  const { clearUser, role } = useUserStore()
+
+  const isAdmin = role?.toLowerCase() === 'admin'
 
   const handleLogout = async () => {
     try {
@@ -22,23 +28,11 @@ const Header: React.FC = () => {
       navigate('/login')
     }
   }
-  
-  const navItems = [
-    { path: '/', label: 'Home' },
-    { path: '/my-cycle', label: '나의 사이클' },
-    { path: '/daily-guide', label: '데일리 가이드' },
-    { path: '/energy-forecast', label: '에너지 예보' },
-    { path: '/life-profile', label: 'Life Profile' },
-    { path: '/life-directions', label: '인생 방향' },
-    { path: '/record', label: '기록 & 리포트' },
-    { path: '/lucky-hub', label: '행운 센터' },
-    { path: '/energy-map', label: '에너지 스팟' },
-    { path: '/guide', label: '콘텐츠 / 가이드' },
-    { path: '/mypage', label: '마이페이지' },
-  ]
+
+  const navItems = isAdminView ? adminNavItems : userNavItems
   
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
+    <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-md border-b ${isAdminView ? 'border-red-200 dark:border-red-900/30' : 'border-gray-200 dark:border-gray-700'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -52,8 +46,11 @@ const Header: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <Link to="/" className="ml-2 xl:ml-0">
+            <Link to={isAdminView ? "/admin" : "/"} className="ml-2 xl:ml-0 flex items-center gap-2">
               <h1 className="text-xl font-bold text-primary dark:text-primary-light">Eighternity</h1>
+              {isAdminView && (
+                <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Admin</span>
+              )}
             </Link>
           </div>
           
@@ -73,6 +70,14 @@ const Header: React.FC = () => {
                 {item.label}
               </Link>
             ))}
+            {isAdmin && !isAdminView && (
+              <Link
+                to="/admin"
+                className="touch-target px-4 py-2 rounded-md text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                관리자 모드
+              </Link>
+            )}
           </nav>
           
           <div className="flex items-center space-x-2">

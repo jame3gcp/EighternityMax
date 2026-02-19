@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/error.js';
 import { requestLogger } from './middleware/logger.js';
 import v1Routes from './routes/v1.js';
 import legacyRoutes from './routes/legacy.js';
+import webhookRoutes from './routes/webhook.js';
 
 const app = express();
 
@@ -25,8 +26,12 @@ const limiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) =>
+    req.method === 'POST' && req.path === '/v1/auth/oauth/dev/callback',
 });
 app.use(limiter);
+
+app.use('/webhook', webhookRoutes);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -38,7 +43,7 @@ app.use('/v1', v1Routes);
 app.use('/api', legacyRoutes);
 
 // 루트 경로
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     service: 'Eighternity API Server',
     version: '1.0.0',
@@ -53,15 +58,12 @@ app.get('/', (req, res) => {
 });
 
 // 헬스 체크
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // 404 핸들러 (알 수 없는 경로)
 app.use((req, res) => {
-  // #region agent log
-  console.log('[DEBUG 404]', { method: req.method, path: req.path, originalUrl: req.originalUrl });
-  // #endregion
   res.status(404).json({
     error: 'Not Found',
     message: `요청하신 경로를 찾을 수 없습니다: ${req.method} ${req.path}`,
