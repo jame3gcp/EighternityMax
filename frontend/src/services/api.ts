@@ -551,41 +551,64 @@ class AuthApi {
     
     if (accessTokenFromHash) {
       console.log('[AuthCallback] Hash에서 access_token 발견, 백엔드로 직접 전달')
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'api.ts:handleAuthCallback_hash',message:'oauth callback url',data:{V1_API_BASE,endpoint:'/auth/oauth/google/callback'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
       const client = new ApiClient(V1_API_BASE)
-      const response = await client.post<OAuthCallbackResponse>(
-        '/auth/oauth/google/callback',
-        {
-          access_token: accessTokenFromHash,
-          refresh_token: refreshTokenFromHash || '',
-        }
-      )
-      TokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token)
-      console.log('[AuthCallback] 토큰 저장 완료 (hash 경로)')
-      return response
+      try {
+        const response = await client.post<OAuthCallbackResponse>(
+          '/auth/oauth/google/callback',
+          {
+            access_token: accessTokenFromHash,
+            refresh_token: refreshTokenFromHash || '',
+          }
+        )
+        TokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token)
+        console.log('[AuthCallback] 토큰 저장 완료 (hash 경로)')
+        return response
+      } catch (e: unknown) {
+        const err = e as { message?: string; statusCode?: number; statusText?: string }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'api.ts:handleAuthCallback_hash_catch',message:'oauth callback API error',data:{message:err?.message,statusCode:err?.statusCode,statusText:err?.statusText},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(()=>{});
+        // #endregion
+        throw e
+      }
     }
     
     // Hash에 토큰이 없으면 Supabase 세션 사용 (로컬 등)
     try {
       const { data: { session }, error } = await supabaseClient.auth.getSession()
       console.log('[AuthCallback] Supabase 세션 확인:', { hasSession: !!session, error })
-      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'api.ts:getSession',message:'supabase session',data:{hasSession:!!session,errorMsg:error?.message},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (error) throw error
       if (!session) return null
 
       const provider = session.user.app_metadata?.provider || 'google'
       const client = new ApiClient(V1_API_BASE)
-      const response = await client.post<OAuthCallbackResponse>(
-        `/auth/oauth/${provider}/callback`,
-        {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        }
-      )
-
-      console.log('[AuthCallback] 백엔드 응답:', { hasTokens: !!response.tokens.access_token, nextStep: response.next_step })
-      TokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token)
-      console.log('[AuthCallback] 토큰 저장 완료:', { hasStoredToken: !!TokenManager.getAccessToken() })
-      return response
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'api.ts:session_callback_url',message:'oauth callback url',data:{V1_API_BASE,endpoint:`/auth/oauth/${provider}/callback`},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      try {
+        const response = await client.post<OAuthCallbackResponse>(
+          `/auth/oauth/${provider}/callback`,
+          {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }
+        )
+        console.log('[AuthCallback] 백엔드 응답:', { hasTokens: !!response.tokens.access_token, nextStep: response.next_step })
+        TokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token)
+        console.log('[AuthCallback] 토큰 저장 완료:', { hasStoredToken: !!TokenManager.getAccessToken() })
+        return response
+      } catch (e: unknown) {
+        const err = e as { message?: string; statusCode?: number; statusText?: string }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'api.ts:session_callback_catch',message:'oauth callback API error',data:{message:err?.message,statusCode:err?.statusCode,statusText:err?.statusText},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(()=>{});
+        // #endregion
+        throw e
+      }
     } catch (e) {
       throw e
     }
