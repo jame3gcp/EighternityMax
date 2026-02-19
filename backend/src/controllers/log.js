@@ -15,6 +15,11 @@ export const logController = {
         throw new ApiError(400, 'energy and emotion are required');
       }
 
+      const LOG_MEMO_MAX = 2000;
+      const memoVal = typeof memo === 'string' && memo.length > LOG_MEMO_MAX
+        ? memo.slice(0, LOG_MEMO_MAX)
+        : (memo || null);
+
       const id = `log-${Date.now()}`;
       await db.insert(records).values({
         id,
@@ -23,7 +28,7 @@ export const logController = {
         energy,
         emotion,
         focus: focus || null,
-        memo: memo || null,
+        memo: memoVal,
         timestamp: new Date(),
       });
 
@@ -35,15 +40,19 @@ export const logController = {
 
   async getLogs(req, res, next) {
     try {
+      const LOGS_LIMIT_MAX = 500;
       const { limit } = req.query;
       const internalId = await userController.getInternalUserId(req.supabaseId);
-      
+      const limitNum = limit != null
+        ? Math.min(Math.max(parseInt(limit, 10) || 100, 1), LOGS_LIMIT_MAX)
+        : 100;
+
       const logs = await db.query.records.findMany({
         where: eq(records.userId, internalId),
         orderBy: [desc(records.timestamp)],
-        limit: limit ? parseInt(limit, 10) : undefined
+        limit: limitNum,
       });
-      
+
       res.json(logs);
     } catch (error) {
       next(error);

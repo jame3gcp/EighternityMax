@@ -173,9 +173,12 @@ export const userController = {
         saju.isIntercalation = !!is_intercalation;
       }
 
+      const NICKNAME_MAX = 100;
       let profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, internalId) });
 
-      const nicknameVal = typeof nickname === 'string' ? (nickname.trim() || null) : null;
+      const nicknameVal = typeof nickname === 'string'
+        ? (nickname.trim().slice(0, NICKNAME_MAX) || null)
+        : null;
       if (profile) {
         await db.update(profiles)
           .set({

@@ -27,6 +27,7 @@ const MyPage = lazy(() => import('./pages/MyPage/MyPage'))
 const DevProfileTest = lazy(() => import('./pages/DevProfileTest/DevProfileTest'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('./pages/TermsOfService/TermsOfService'))
+const LogoPreview = lazy(() => import('./pages/LogoPreview/LogoPreview'))
 
 const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'))
 const AdminUserList = lazy(() => import('./pages/Admin/UserList'))
@@ -238,6 +239,7 @@ function AppRoutes() {
           }
         />
         <Route path="/guide" element={<Guide />} />
+        <Route path="/logo-preview" element={<LogoPreview />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route

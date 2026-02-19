@@ -1,5 +1,5 @@
-import { pgTable, text, integer, boolean, timestamp, uniqueIndex, index, jsonb } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, text, integer, boolean, timestamp, uniqueIndex, index, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -28,6 +28,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   guides: many(guides),
   adminAuditLogs: many(adminAuditLogs),
   gameScores: many(gameScores),
+  siteContents: many(siteContents),
 }));
 
 export const plans = pgTable('plans', {
@@ -237,6 +238,24 @@ export const energySpots = pgTable('energy_spots', {
   activeIdx: index('energy_spots_active_idx').on(table.isActive),
 }));
 
+export const siteContents = pgTable('site_contents', {
+  id: text('id').primaryKey(),
+  contentKey: text('content_key').notNull(),
+  title: text('title').notNull(),
+  contentMarkdown: text('content_markdown').notNull(),
+  version: text('version').notNull(),
+  status: text('status').notNull().default('draft'),
+  effectiveAt: timestamp('effective_at'),
+  publishedAt: timestamp('published_at'),
+  createdBy: text('created_by').references(() => users.id),
+  updatedBy: text('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  keyVersionIdx: uniqueIndex('site_contents_key_version_idx').on(table.contentKey, table.version),
+  activeIdx: index('site_contents_active_idx').on(table.contentKey).where(sql`status = 'active'`),
+}));
+
 export const coupons = pgTable('coupons', {
   id: text('id').primaryKey(),
   code: text('code').notNull(),
@@ -341,4 +360,9 @@ export const sajuAnalysesRelations = relations(sajuAnalyses, ({ one }) => ({
 
 export const guidesRelations = relations(guides, ({ one }) => ({
   author: one(users, { fields: [guides.authorId], references: [users.id] }),
+}));
+
+export const siteContentsRelations = relations(siteContents, ({ one }) => ({
+  creator: one(users, { fields: [siteContents.createdBy], references: [users.id] }),
+  updater: one(users, { fields: [siteContents.updatedBy], references: [users.id] }),
 }));

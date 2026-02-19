@@ -10,8 +10,11 @@ export const authController = {
       const { provider } = req.params;
       const { access_token, refresh_token, code } = req.body;
 
-      // 개발 테스트용: 'dev' provider는 Supabase 없이 처리
+      // 개발 전용: 'dev' provider는 프로덕션에서 비활성
       if (provider === 'dev') {
+        if (process.env.NODE_ENV === 'production') {
+          throw new ApiError(400, 'Dev provider is not available in production');
+        }
         const providerUserId = 'dev-test-user';
         
         // 기존 사용자 확인
@@ -169,6 +172,17 @@ export const authController = {
 
       if (!refresh_token) {
         throw new ApiError(400, 'refresh_token is required');
+      }
+
+      // 개발 전용: dev-refresh-token은 NODE_ENV=development에서만 허용, Supabase 호출 없이 새 액세스 토큰 반환
+      if (process.env.NODE_ENV === 'development' && refresh_token.startsWith('dev-refresh-token-')) {
+        const userId = refresh_token.replace('dev-refresh-token-', '');
+        const devAccessToken = `dev-test-token-${userId}`;
+        res.json({
+          access_token: devAccessToken,
+          refresh_token,
+        });
+        return;
       }
 
       // Supabase refresh token을 사용하여 새 세션 가져오기

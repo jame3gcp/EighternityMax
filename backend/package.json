@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "node src/server.js",
+    "dev": "cross-env NODE_ENV=development node src/server.js",
     "start": "node src/server.js",
     "migrate": "node migrate-supabase.js",
     "db:generate": "drizzle-kit generate",
@@ -14,7 +14,8 @@
     "db:migrate-consent": "node scripts/migrate-privacy-consent.js",
     "db:migrate-saju": "node scripts/migrate-saju.js",
     "verify-saju": "node scripts/verify-saju.js",
-    "test": "node test-api.js"
+    "test": "node test-api.js",
+    "audit": "npm audit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",

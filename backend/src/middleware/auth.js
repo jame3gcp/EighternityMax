@@ -2,7 +2,8 @@ import { supabase } from '../models/db.js';
 import { ApiError } from './error.js';
 import { userController } from '../controllers/user.js';
 
-const isDev = process.env.NODE_ENV !== 'production';
+/** 개발 환경에서만 true. 프로덕션에서는 dev-test-token을 절대 허용하지 않음. */
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,8 +13,8 @@ export const authenticate = async (req, res, next) => {
     return next(new ApiError(401, 'Unauthorized'));
   }
 
-  // 개발 테스트 토큰 처리
-  if (isDev && token && token.startsWith('dev-test-token-')) {
+  // 개발 전용: dev-test-token은 NODE_ENV=development에서만 허용
+  if (isDevelopment && token.startsWith('dev-test-token-')) {
     const userId = token.replace('dev-test-token-', '');
     req.supabaseId = 'dev-test-user'; // providerUserId
     req.userId = userId; // 실제 사용자 ID

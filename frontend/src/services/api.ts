@@ -865,6 +865,29 @@ class AdminApi {
     const client = new ApiClient(V1_API_BASE)
     return client.patch<{ week_start_day: number; games_enabled: Record<string, boolean> }>('/admin/rankings/settings', data)
   }
+
+  async getSiteContentVersions(contentKey?: string): Promise<any[]> {
+    const client = new ApiClient(V1_API_BASE)
+    const query = contentKey ? `?contentKey=${contentKey}` : ''
+    return client.get(`/admin/site-contents${query}`)
+  }
+
+  async createSiteContent(data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post('/admin/site-contents', data)
+  }
+
+  async updateSiteContent(id: string, data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch(`/admin/site-contents/${id}`, data)
+  }
+}
+
+class SiteContentApi {
+  async getActive(contentKey: string): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get(`/site-contents/${contentKey}`)
+  }
 }
 
 class AnalyticsApi {
@@ -887,5 +910,6 @@ export const luckyApi = new LuckyApi()
 export const gameScoresApi = new GameScoresApi()
 export const reportApi = new ReportApi()
 export const adminApi = new AdminApi()
+export const siteContentApi = new SiteContentApi()
 export const analyticsApi = new AnalyticsApi()
 export { TokenManager }

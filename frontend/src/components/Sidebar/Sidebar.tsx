@@ -4,6 +4,7 @@ import { useUIStore } from '@/store/useUIStore'
 import { useUserStore } from '@/store/useUserStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { userNavItems, adminNavItems } from '@/data/navItems'
+import LogoIcon from '@/components/LogoIcon/LogoIcon'
 
 interface SidebarProps {
   isAdminView?: boolean
@@ -40,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isAdminView = false }) => {
               <div className="flex flex-col h-full">
                 <div className={`flex items-center justify-between p-4 border-b ${isAdminView ? 'border-red-200 dark:border-red-900/30' : 'border-gray-200 dark:border-gray-700'}`}>
                   <div className="flex items-center gap-2">
+                    <LogoIcon variant="b" className="h-7 w-7 text-primary dark:text-primary-light" />
                     <h2 className="text-lg font-bold text-primary dark:text-primary-light">Eighternity</h2>
                     {isAdminView && (
                       <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Admin</span>
