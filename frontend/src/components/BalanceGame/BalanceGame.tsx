@@ -158,20 +158,27 @@ const BalanceGame: React.FC<BalanceGameProps> = ({ onGameEnd, onClose, energyEle
   const zoneLeftPercent = 50 - zoneWidthPercent / 2
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
-        style={{ maxHeight: '90vh', height: '90vh', minHeight: '500px' }}
-      >
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">밸런스 컨트롤</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            ✕
-          </Button>
-        </div>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[min(90vh,calc(100dvh-2rem))] min-h-[280px]"
+        >
+          {/* 헤더: 항상 보이도록 sticky + 배경 */}
+          <div className="sticky top-0 z-10 shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">밸런스 컨트롤</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="창 닫기"
+              className="flex items-center gap-1.5 shrink-0 px-3 min-h-[44px] justify-center rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 font-medium"
+            >
+              <span className="text-lg font-bold leading-none" aria-hidden>✕</span>
+              <span className="text-sm">닫기</span>
+            </button>
+          </div>
 
         <div className="flex-1 p-4 flex flex-col min-h-0 overflow-y-auto">
           <AnimatePresence mode="wait">
@@ -311,7 +318,8 @@ const BalanceGame: React.FC<BalanceGameProps> = ({ onGameEnd, onClose, energyEle
             )}
           </AnimatePresence>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   )
 }

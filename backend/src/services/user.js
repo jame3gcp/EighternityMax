@@ -17,6 +17,7 @@ export const userService = {
 
   async create(userData) {
     const result = await db.insert(users).values({
+      role: 'user',
       ...userData,
       createdAt: new Date(userData.created_at || Date.now()),
       lastLoginAt: new Date(userData.last_login_at || Date.now()),

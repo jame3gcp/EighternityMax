@@ -30,6 +30,7 @@ export const userController = {
       providerUserId: supabaseUser.id,
       email: supabaseUser.email ?? null,
       displayName: supabaseUser.user_metadata?.full_name || `${provider} 사용자`,
+      role: 'user',
       createdAt: new Date(),
       lastLoginAt: new Date(),
     });
@@ -141,7 +142,7 @@ export const userController = {
 
   async saveProfile(req, res, next) {
     try {
-      const { birth_date, birth_time, gender, region, calendar_type = 'solar', is_intercalation } = req.body;
+      const { birth_date, birth_time, gender, region, calendar_type = 'solar', is_intercalation, nickname } = req.body;
       const internalId = await userController.getInternalUserId(req.supabaseId);
       if (!internalId) {
         if (process.env.NODE_ENV !== 'production') {
@@ -174,6 +175,7 @@ export const userController = {
 
       let profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, internalId) });
 
+      const nicknameVal = typeof nickname === 'string' ? (nickname.trim() || null) : null;
       if (profile) {
         await db.update(profiles)
           .set({
@@ -181,6 +183,7 @@ export const userController = {
             birthTime: birth_time || null,
             gender,
             region: region || null,
+            ...(nickname !== undefined && { nickname: nicknameVal }),
             saju: saju || undefined,
             updatedAt: new Date(),
           })
@@ -194,6 +197,7 @@ export const userController = {
           birthTime: birth_time || null,
           gender,
           region: region || null,
+          nickname: nicknameVal,
           saju: saju || undefined,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -250,7 +254,7 @@ export const userController = {
 
           setImmediate(async () => {
             try {
-              const result = await analyzeSajuWithChatGPT(saved.saju);
+              const result = await analyzeSajuWithChatGPT(saved.saju, internalId);
               if (result) {
                 await db.update(sajuAnalyses)
                   .set({
@@ -395,7 +399,7 @@ export const userController = {
 
       setImmediate(async () => {
         try {
-          const result = await analyzeSajuWithChatGPT(profile.saju);
+          const result = await analyzeSajuWithChatGPT(profile.saju, internalId);
           if (result) {
             await db.update(sajuAnalyses)
               .set({

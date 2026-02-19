@@ -13,7 +13,8 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0', // 외부 네트워크 접근 허용
+    // 127.0.0.1 사용 시 네트워크 인터페이스 조회를 피해 sandbox/제한 환경에서 안정적 동작
+    host: process.env.VITE_DEV_HOST === 'all' ? '0.0.0.0' : '127.0.0.1',
     port: 5173,
     strictPort: true,
   },

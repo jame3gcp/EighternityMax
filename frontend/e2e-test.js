@@ -25,8 +25,8 @@ const scenarios = {
     name: '신규 사용자 가입 → 분석 생성 → Home 진입',
     steps: [
       { action: 'navigate', url: `${TEST_CONFIG.frontendUrl}/login` },
-      { action: 'wait', selector: 'text=테스트 계정으로 로그인', timeout: 5000 },
-      { action: 'click', selector: 'text=테스트 계정으로 로그인' },
+      { action: 'wait', selector: 'text=테스트 로그인 → 홈', timeout: 5000 },
+      { action: 'click', selector: 'text=테스트 로그인 → 홈' },
       { action: 'wait', url: `${TEST_CONFIG.frontendUrl}/onboarding` },
       { action: 'wait', selector: 'text=개인정보 수집 및 이용 동의' },
       { action: 'check', selector: 'input[type="checkbox"]:first-of-type' },
@@ -51,7 +51,7 @@ const scenarios = {
     name: '기존 사용자 로그인 → Home 진입',
     steps: [
       { action: 'navigate', url: `${TEST_CONFIG.frontendUrl}/login` },
-      { action: 'click', selector: 'text=테스트 계정으로 로그인' },
+      { action: 'click', selector: 'text=테스트 로그인 → 홈' },
       { action: 'wait', url: `${TEST_CONFIG.frontendUrl}/` },
       { action: 'verify', selector: 'text=Energy Index' }
     ]

@@ -4,12 +4,36 @@
  */
 import { getOpenAIClient } from './openaiClient.js';
 import { config } from '../config/index.js';
+import { db } from '../models/db.js';
+import { aiUsageLogs } from '../models/schema.js';
 
 const PROMPT_VERSION = '1';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 
 const PILLAR_KEYS = ['year', 'month', 'day', 'hour'];
 const PILLAR_LABELS = { year: '연', month: '월', day: '일', hour: '시' };
+
+async function logAiUsage({ userId, feature, model, promptTokens, completionTokens, totalTokens }) {
+  try {
+    const inputCostCents = promptTokens * (15 / 1000000);
+    const outputCostCents = completionTokens * (60 / 1000000);
+    const totalCostCents = Math.ceil((inputCostCents + outputCostCents) * 10000) / 10000;
+
+    await db.insert(aiUsageLogs).values({
+      id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      userId,
+      feature,
+      model,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      costCents: Math.ceil(totalCostCents),
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.warn('⚠️ Failed to log AI usage:', error.message);
+  }
+}
 
 /**
  * 사주 객체에서 프롬프트용 요약 텍스트 생성 (개인 식별 최소화)
@@ -96,7 +120,7 @@ function isValidAnalysis(obj) {
  * @param {object} saju - profile.saju
  * @returns {Promise<{ analysis: object, model: string } | null>} 파싱 성공 시 분석 객체와 모델명, 실패 시 null
  */
-export async function analyzeSajuWithChatGPT(saju) {
+export async function analyzeSajuWithChatGPT(saju, userId = null) {
   const client = getOpenAIClient();
   if (!client) return null;
 
@@ -166,6 +190,18 @@ JSON 구조와 작성 기준 (모든 필드 분량을 이전 기준의 약 2배�
     });
 
     const content = completion.choices?.[0]?.message?.content?.trim();
+    
+    if (userId && completion.usage) {
+      logAiUsage({
+        userId,
+        feature: 'saju_analysis',
+        model: completion.model || model,
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+      });
+    }
+
     if (!content) return null;
 
     let parsed;

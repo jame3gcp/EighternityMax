@@ -19,8 +19,8 @@ const AuthCallback: React.FC = () => {
           
           setUser({
             id: response.user.user_id,
-            name: response.user.provider,
-            email: '',
+            name: response.user.display_name ?? response.user.provider,
+            email: response.user.email ?? '',
             createdAt: Date.now(),
             provider: response.user.provider,
           })

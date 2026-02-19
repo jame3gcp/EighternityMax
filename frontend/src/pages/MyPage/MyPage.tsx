@@ -6,6 +6,7 @@ import { userApi, authApi, profileApi, lifeProfileApi, isNetworkError } from '@/
 import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import Input from '@/components/Input/Input'
+import RegionSelect from '@/components/RegionSelect/RegionSelect'
 import type { Profile, SajuAnalysisResponse } from '@/types'
 
 interface UserFormData {
@@ -38,12 +39,13 @@ const MyPage: React.FC = () => {
   const [isGeneratingSaju, setIsGeneratingSaju] = useState(false)
   const [showSajuDetail, setShowSajuDetail] = useState(false)
   const [connectionError, setConnectionError] = useState(false)
-  const { register, handleSubmit, reset } = useForm<UserFormData>()
+  const { register, handleSubmit, reset, formState: { errors: userFormErrors } } = useForm<UserFormData>()
   const {
     register: registerProfile,
     handleSubmit: handleSubmitProfile,
     reset: resetProfile,
     watch: watchProfile,
+    setValue: setValueProfile,
   } = useForm<ProfileFormData>({ defaultValues: { calendarType: 'solar' } })
   const profileCalendarType = watchProfile('calendarType')
 
@@ -182,7 +184,8 @@ const MyPage: React.FC = () => {
     if (!user) return
     setIsLoading(true)
     try {
-      const updatedUser = await userApi.updateUser(user.id, data)
+      // 이메일은 OAuth 기준 읽기 전용이므로 이름만 전송
+      const updatedUser = await userApi.updateUser(user.id, { name: data.name })
       setUser(updatedUser)
       alert('정보가 업데이트되었습니다!')
     } catch (error) {
@@ -386,14 +389,25 @@ const MyPage: React.FC = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             label="이름"
+            error={userFormErrors.name?.message}
             {...register('name', { required: '이름을 입력해주세요.' })}
           />
           <Input
             label="이메일"
             type="email"
-            {...register('email', { required: '이메일을 입력해주세요.' })}
+            readOnly
+            className="bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
+            {...register('email')}
           />
-          <Button type="submit" disabled={isLoading}>
+          <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+            OAuth 로그인 계정의 이메일로, 변경할 수 없습니다.
+          </p>
+          <Button
+            type="button"
+            disabled={isLoading}
+            onClick={() => handleSubmit(onSubmit)()}
+            aria-label="정보 업데이트"
+          >
             {isLoading ? '저장 중...' : '정보 업데이트'}
           </Button>
         </form>
@@ -522,10 +536,11 @@ const MyPage: React.FC = () => {
                 </label>
               </div>
             </div>
-            <Input
+            <RegionSelect
               label="거주 지역 (선택사항)"
-              {...registerProfile('region')}
-              placeholder="예: 서울시 강남구"
+              value={watchProfile('region') ?? ''}
+              onChange={(v) => setValueProfile('region', v)}
+              disabled={isUpdatingProfile || isRegenerating}
             />
             <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 rounded">
               <p className="text-sm text-amber-800 dark:text-amber-200">

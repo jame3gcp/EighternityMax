@@ -27,6 +27,7 @@ async function migrate() {
         providerUserId: u.providerUserId,
         email: u.email,
         displayName: u.displayName,
+        role: u.role || 'user',
         createdAt: new Date(u.createdAt),
         lastLoginAt: new Date(u.lastLoginAt),
       }).onConflictDoNothing();

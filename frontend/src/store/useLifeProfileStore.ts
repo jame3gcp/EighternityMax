@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { LifeProfile } from '@/types'
-import { lifeProfileApi } from '@/services/api'
+import { lifeProfileApi, isNetworkError, NETWORK_ERROR_MESSAGE } from '@/services/api'
 
 interface LifeProfileState {
   lifeProfile: LifeProfile | null
@@ -31,9 +31,12 @@ export const useLifeProfileStore = create<LifeProfileState>((set) => ({
       if (error?.message?.includes('Not Found') || error?.statusCode === 404) {
         set({ lifeProfile: null, isLoading: false, error: null })
       } else {
-        console.error('Failed to fetch life profile:', error)
-        // 실제 에러인 경우에만 에러 표시
-        set({ error: 'Life Profile을 불러올 수 없습니다.', isLoading: false })
+        if (isNetworkError(error)) {
+          set({ error: NETWORK_ERROR_MESSAGE, isLoading: false })
+        } else {
+          console.error('Failed to fetch life profile:', error)
+          set({ error: 'Life Profile을 불러올 수 없습니다.', isLoading: false })
+        }
       }
     }
   },

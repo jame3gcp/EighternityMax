@@ -166,7 +166,16 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error: any = new Error(`API Error: ${response.statusText}`)
+      let message = `API Error: ${response.statusText}`
+      try {
+        const body = await response.json().catch(() => ({}))
+        if (body && typeof (body as { message?: string }).message === 'string') {
+          message = (body as { message: string }).message
+        }
+      } catch {
+        // ignore
+      }
+      const error: any = new Error(message)
       error.statusCode = response.status
       error.statusText = response.statusText
       throw error
@@ -217,6 +226,13 @@ class ApiClient {
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'DELETE',
+    })
+  }
+
+  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     })
   }
 }
@@ -295,11 +311,12 @@ class UserApi {
     const data = await client.get<any>('/users/me')
     const user: User = {
       id: data.id,
-      name: data.display_name || data.name || '사용자',
-      email: data.email,
-      createdAt: data.created_at || data.createdAt,
+      name: data.displayName || data.display_name || data.name || '사용자',
+      email: data.email ?? '',
+      createdAt: data.created_at ?? data.createdAt ?? 0,
+      ...(typeof (data.role ?? data.user_role) === 'string' && { role: data.role ?? data.user_role }),
       ...(data.provider && { provider: data.provider }),
-      ...(data.display_name && { displayName: data.display_name }),
+      ...((data.displayName ?? data.display_name) && { displayName: data.displayName ?? data.display_name }),
       ...(typeof data.privacy_consent_given === 'boolean' && { privacyConsentGiven: data.privacy_consent_given }),
     }
     return user
@@ -389,11 +406,12 @@ export interface LuckyDrawHistoryItem {
 }
 
 class LuckyApi {
-  /** 오늘 생성된 행운 번호 조회. 없으면 null (404). */
-  async getTodayLuckyNumbers(): Promise<LuckyDrawResponse | null> {
+  /** 오늘 생성된 행운 번호 조회. date 있으면 해당 날짜로 조회(클라이언트 오늘 기준 초기화용). 없으면 null (404). */
+  async getTodayLuckyNumbers(date?: string): Promise<LuckyDrawResponse | null> {
     const client = new ApiClient(V1_API_BASE)
+    const url = date ? `/users/me/lucky-numbers?date=${encodeURIComponent(date)}` : '/users/me/lucky-numbers'
     try {
-      return await client.get<LuckyDrawResponse>('/users/me/lucky-numbers')
+      return await client.get<LuckyDrawResponse>(url)
     } catch (e: any) {
       if (e?.statusCode === 404) return null
       throw e
@@ -424,9 +442,8 @@ class LuckyApi {
     }
     if (!res.ok) {
       const msg = (data as { message?: string; error?: string })?.message ?? (data as { error?: string })?.error ?? (res.statusText || `HTTP ${res.status}`)
-      const err = new Error(msg) as Error & { statusCode: number; responseBody?: unknown }
+      const err = new Error(msg) as Error & { statusCode: number }
       err.statusCode = res.status
-      err.responseBody = data
       throw err
     }
     return {
@@ -447,6 +464,58 @@ class LuckyApi {
   async getLuckyNumbersByDate(date: string): Promise<LuckyDrawResponse> {
     const client = new ApiClient(V1_API_BASE)
     return client.get<LuckyDrawResponse>(`/users/me/lucky-numbers?date=${encodeURIComponent(date)}`)
+  }
+}
+
+export interface GameScoreSubmitResponse {
+  weekKey: string
+  score: number
+  updated: boolean
+  message?: string
+}
+
+export interface GameRankingEntry {
+  rank: number
+  userId: string
+  displayName: string
+  score?: number
+  points?: number
+}
+
+export interface GameRankingResponse {
+  weekKey: string
+  gameId?: string
+  list: GameRankingEntry[]
+  myRank?: number
+  myScore?: number
+  total: number
+}
+
+export interface GameRankingAllResponse {
+  weekKey: string
+  list: GameRankingEntry[]
+  myRank?: number
+  total: number
+}
+
+class GameScoresApi {
+  async submit(gameId: string, score: number, metadata?: Record<string, unknown>): Promise<GameScoreSubmitResponse> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post<GameScoreSubmitResponse>('/users/me/game-scores', { gameId, score, metadata })
+  }
+
+  async getRanking(gameId: string, weekKey?: string, limit = 20): Promise<GameRankingResponse> {
+    const client = new ApiClient(V1_API_BASE)
+    const params = new URLSearchParams({ gameId, limit: String(limit) })
+    if (weekKey) params.set('weekKey', weekKey)
+    return client.get<GameRankingResponse>(`/users/me/game-scores/rankings?${params}`)
+  }
+
+  async getRankingAll(weekKey?: string, limit = 20): Promise<GameRankingAllResponse> {
+    const client = new ApiClient(V1_API_BASE)
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (weekKey) params.set('weekKey', weekKey)
+    return client.get<GameRankingAllResponse>(`/users/me/game-scores/rankings/all?${params}`)
   }
 }
 
@@ -652,15 +721,171 @@ class DailyGuideApi {
   }
 }
 
-export const cycleApi = new CycleApi()
-export const recordApi = new RecordApi()
-export const userApi = new UserApi()
+class AdminApi {
+  async getStats(): Promise<{
+    totalUsers: number
+    totalSubscribers: number
+    totalRevenue: number
+    monthlyGrowth: number
+    activeSubscriptions: number
+  }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/stats')
+  }
+
+  async getUsers(page = 1, limit = 20): Promise<{
+    users: any[]
+    total: number
+    pages: number
+  }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get(`/admin/users?page=${page}&limit=${limit}`)
+  }
+
+  async getUserById(id: string): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get(`/admin/users/${id}`)
+  }
+
+  async updateUserRole(id: string, role: string): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch(`/admin/users/${id}/role`, { role })
+  }
+
+  async getAiCosts(): Promise<{
+    totalCost: number
+    usageByModel: Record<string, number>
+    recentLogs: any[]
+  }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/ai-costs')
+  }
+
+  async getAuditLogs(page = 1): Promise<{ logs: any[]; total: number; pages: number }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get(`/admin/audit-logs?page=${page}`)
+  }
+
+  async getGuides(): Promise<any[]> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/guides')
+  }
+
+  async createGuide(data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post('/admin/guides', data)
+  }
+
+  async updateGuide(id: string, data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch(`/admin/guides/${id}`, data)
+  }
+
+  async getSpots(): Promise<any[]> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/spots')
+  }
+
+  async createSpot(data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post('/admin/spots', data)
+  }
+
+  async updateSpot(id: string, data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch(`/admin/spots/${id}`, data)
+  }
+
+  async getCoupons(): Promise<any[]> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/coupons')
+  }
+
+  async createCoupon(data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post('/admin/coupons', data)
+  }
+
+  async updateCoupon(id: string, data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch(`/admin/coupons/${id}`, data)
+  }
+
+  async getPayments(page = 1, limit = 20): Promise<{ payments: any[]; total: number; pages: number }> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get(`/admin/payments?page=${page}&limit=${limit}`)
+  }
+
+  async refundPayment(id: string, reason?: string): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post(`/admin/payments/${id}/refund`, { reason })
+  }
+
+  async overrideSubscription(userId: string, data: any): Promise<any> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post(`/admin/users/${userId}/override-subscription`, data)
+  }
+
+  async getRetention(): Promise<any[]> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get('/admin/analytics/retention')
+  }
+
+  async getBehaviorStats(from: string, to: string): Promise<{
+    from: string | null
+    to: string | null
+    topMenus: any[]
+    avgDuration: any[]
+    hourlyActive: any[]
+  }> {
+    const client = new ApiClient(V1_API_BASE)
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return client.get(`/admin/analytics/behavior${query}`)
+  }
+
+  async getRankings(params?: { weekKey?: string; gameId?: string; limit?: number }) {
+    const client = new ApiClient(V1_API_BASE)
+    const search = new URLSearchParams()
+    if (params?.weekKey) search.set('weekKey', params.weekKey)
+    if (params?.gameId) search.set('gameId', params.gameId)
+    if (params?.limit) search.set('limit', String(params.limit))
+    const q = search.toString()
+    return client.get<{ weekKey: string; gameId?: string; list?: Array<{ rank: number; userId: string; displayName: string; email?: string; score: number }>; byGame?: Record<string, Array<{ rank: number; userId: string; score: number }>> }>(`/admin/rankings${q ? `?${q}` : ''}`)
+  }
+
+  async getRankingSettings() {
+    const client = new ApiClient(V1_API_BASE)
+    return client.get<{ week_start_day: number; games_enabled: Record<string, boolean> }>('/admin/rankings/settings')
+  }
+
+  async updateRankingSettings(data: { week_start_day?: number; games_enabled?: Record<string, boolean> }) {
+    const client = new ApiClient(V1_API_BASE)
+    return client.patch<{ week_start_day: number; games_enabled: Record<string, boolean> }>('/admin/rankings/settings', data)
+  }
+}
+
+class AnalyticsApi {
+  async logActivity(data: { type: string; path: string; durationMs?: number; metadata?: any }): Promise<void> {
+    const client = new ApiClient(V1_API_BASE)
+    return client.post('/analytics/log', data)
+  }
+}
+
 export const authApi = new AuthApi()
 export const profileApi = new ProfileApi()
 export const lifeProfileApi = new LifeProfileApi()
 export const dailyGuideApi = new DailyGuideApi()
 export const directionApi = new DirectionApi()
 export const spotApi = new SpotApi()
+export const cycleApi = new CycleApi()
+export const recordApi = new RecordApi()
+export const userApi = new UserApi()
 export const luckyApi = new LuckyApi()
+export const gameScoresApi = new GameScoresApi()
 export const reportApi = new ReportApi()
+export const adminApi = new AdminApi()
+export const analyticsApi = new AnalyticsApi()
 export { TokenManager }

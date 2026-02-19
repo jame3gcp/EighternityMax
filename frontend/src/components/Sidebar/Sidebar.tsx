@@ -1,25 +1,21 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useUIStore } from '@/store/useUIStore'
+import { useUserStore } from '@/store/useUserStore'
 import { motion, AnimatePresence } from 'framer-motion'
+import { userNavItems, adminNavItems } from '@/data/navItems'
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isAdminView?: boolean
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isAdminView = false }) => {
   const location = useLocation()
   const { isSidebarOpen, closeSidebar } = useUIStore()
-  
-  const navItems = [
-    { path: '/', label: 'Home', icon: '🏠' },
-    { path: '/my-cycle', label: '나의 사이클', icon: '🌀' },
-    { path: '/daily-guide', label: '데일리 가이드', icon: '📅' },
-    { path: '/energy-forecast', label: '에너지 예보', icon: '📊' },
-    { path: '/life-profile', label: 'Life Profile', icon: '👤' },
-    { path: '/life-directions', label: '인생 방향', icon: '🧭' },
-    { path: '/record', label: '기록 & 리포트', icon: '📝' },
-    { path: '/lucky-hub', label: '행운 센터', icon: '🍀' },
-    { path: '/energy-map', label: '에너지 스팟', icon: '📍' },
-    { path: '/guide', label: '콘텐츠 / 가이드', icon: '📚' },
-    { path: '/mypage', label: '마이페이지', icon: '⚙️' },
-  ]
+  const { role } = useUserStore()
+
+  const isAdmin = role?.toLowerCase() === 'admin'
+  const navItems = isAdminView ? adminNavItems : userNavItems
   
   return (
     <>
@@ -42,8 +38,13 @@ const Sidebar: React.FC = () => {
               className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-xl z-50 xl:hidden"
             >
               <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                  <h2 className="text-lg font-bold text-primary dark:text-primary-light">Eighternity</h2>
+                <div className={`flex items-center justify-between p-4 border-b ${isAdminView ? 'border-red-200 dark:border-red-900/30' : 'border-gray-200 dark:border-gray-700'}`}>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-primary dark:text-primary-light">Eighternity</h2>
+                    {isAdminView && (
+                      <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Admin</span>
+                    )}
+                  </div>
                   <button
                     onClick={closeSidebar}
                     className="touch-target p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -67,11 +68,23 @@ const Sidebar: React.FC = () => {
                               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                           }`}
                         >
-                          <span className="text-xl">{item.icon}</span>
+                          <span className="text-xl">{item.icon ?? '•'}</span>
                           <span>{item.label}</span>
                         </Link>
                       </li>
                     ))}
+                    {isAdmin && !isAdminView && (
+                      <li className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
+                        <Link
+                          to="/admin"
+                          onClick={closeSidebar}
+                          className="touch-target flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <span className="text-xl">⚙️</span>
+                          <span>관리자 모드</span>
+                        </Link>
+                      </li>
+                    )}
                   </ul>
                 </nav>
               </div>
@@ -81,7 +94,7 @@ const Sidebar: React.FC = () => {
       </AnimatePresence>
       
       {/* 데스크탑 사이드바 (xl 이상에서만 항상 표시) */}
-      <aside className="hidden xl:block fixed top-16 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-md border-r border-gray-200 dark:border-gray-700 z-30">
+      <aside className={`hidden xl:block fixed top-16 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-md border-r ${isAdminView ? 'border-red-200 dark:border-red-900/30' : 'border-gray-200 dark:border-gray-700'} z-30`}>
         <nav className="p-4">
           <ul className="space-y-2">
             {navItems.map((item) => (
@@ -94,11 +107,22 @@ const Sidebar: React.FC = () => {
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-xl">{item.icon ?? '•'}</span>
                   <span>{item.label}</span>
                 </Link>
               </li>
             ))}
+            {isAdmin && !isAdminView && (
+              <li className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
+                <Link
+                  to="/admin"
+                  className="touch-target flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <span className="text-xl">⚙️</span>
+                  <span>관리자 모드</span>
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       </aside>

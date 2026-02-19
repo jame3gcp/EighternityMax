@@ -69,13 +69,6 @@ async function runTests() {
       accessToken = 'test-token'
     }
   })
-    if (status !== 200) throw new Error(`Expected 200, got ${status}`)
-    if (!data.tokens?.access_token) throw new Error('Missing access_token')
-    if (!data.user?.user_id) throw new Error('Missing user_id')
-    accessToken = data.tokens.access_token
-    refreshToken = data.tokens.refresh_token
-    userId = data.user.user_id
-  })
 
   await test('POST /v1/auth/oauth/kakao/callback - code 누락 시 400 에러', async () => {
     const { status } = await apiCall('/auth/oauth/kakao/callback', {
