@@ -52,8 +52,15 @@ const AuthCallback: React.FC = () => {
         }
       } catch (error) {
         console.error('[AuthCallback Page] 에러:', error)
-        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
-        alert(`로그인 처리 중 오류가 발생했습니다.\n\n${errorMessage}\n\n콘솔을 확인해주세요.`)
+        const err = error as Error & { statusCode?: number; statusText?: string }
+        const errorMessage = err?.message ?? '알 수 없는 오류'
+        const statusCode = err?.statusCode
+        const statusText = err?.statusText
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'AuthCallback.tsx:catch',message:'login error',data:{errorMessage,String_statusCode:String(statusCode),statusText},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+        // #endregion
+        const detail = statusCode != null ? `\n[HTTP ${statusCode}${statusText ? ` ${statusText}` : ''}]` : ''
+        alert(`로그인 처리 중 오류가 발생했습니다.${detail}\n\n${errorMessage}\n\n콘솔을 확인해주세요.`)
         navigate('/login', { replace: true })
       }
     }
