@@ -62,6 +62,16 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # SONAR_TOKEN 미설정 시 "Project not found" 대신 즉시 명확한 오류로 실패
+      - name: Check SONAR_TOKEN
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::error::SONAR_TOKEN is not set. Add it in Settings → Secrets and variables → Actions. See docs/SONARQUBE_CI_TROUBLESHOOTING.md"
+            exit 1
+          fi
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
