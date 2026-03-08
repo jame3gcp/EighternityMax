@@ -24,11 +24,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+
+      - name: Cache frontend node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-frontend-
 
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
+
+      - name: Cache backend node_modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-backend-
 
       - name: Install backend dependencies
         run: npm ci
@@ -37,6 +50,10 @@ jobs:
       - name: Run frontend tests with coverage
         run: npm run test:run -- --coverage
         working-directory: frontend
+
+      # LCOV 경로가 frontend 기준(src/...)이므로 SonarQube(루트 기준)에서 해석되도록 수정
+      - name: Fix LCOV paths for SonarQube
+        run: sed -i 's|^SF:src/|SF:frontend/src/|g' frontend/coverage/lcov.info
 
       - name: Cache SonarQube packages
         uses: actions/cache@v4
