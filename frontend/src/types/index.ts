@@ -12,11 +12,15 @@ export interface Phase {
   color: string
 }
 
+export type TrendValue = 'up' | 'down' | 'stable'
+
 export interface CycleData {
   userId: string
   period: Period
   currentPhase: number // 0-7 (8단계)
   phases: Phase[]
+  /** 기록 기반 트렌드 (문서 §4 C). 없으면 stable */
+  trends?: { energy: TrendValue; emotion: TrendValue; focus: TrendValue }
   timestamp: number
 }
 
@@ -186,6 +190,8 @@ export interface LifeProfile {
   energyElements?: EnergyElement[]
   energyTraits?: EnergyTrait[]
   energyBlueprint?: EnergyBlueprint
+  /** 종합분석 요약 (사주·AI 기반) */
+  insightsSummary?: string
 }
 
 export interface Job {
@@ -255,12 +261,32 @@ export interface MonthlyReport {
   top_activities: string[]
 }
 
+/** 추천/주의 항목 (Explainable UX: reason 선택) */
+export interface InterpretationItem {
+  text: string
+  reason?: string
+}
+
 export interface Interpretation {
   phaseId: number
   title: string
   description: string
+  /** 에너지/감정/집중 특성 요약 (직관 문장) */
+  energyTraitSummary?: string
   recommendations: string[]
   warnings: string[]
+  /** 추천 행동 + 근거 (있으면 UI에서 reason 표시) */
+  recommendationItems?: InterpretationItem[]
+  /** 주의사항 + 근거 */
+  warningItems?: InterpretationItem[]
   nextPhase: number
   nextPhaseName: string
+  /** 다음 단계 설명 (실행 가능한 코칭) */
+  nextPhaseDescription?: string
+  /** 다음 단계 전환 시기/준비 팁 */
+  nextPhaseTransitionHint?: string
+  /** 기간별 흐름 요약 (오늘/이번 주) */
+  periodSummary?: string
+  /** Life Profile 기반 개인화 문장 */
+  personalization?: string
 }

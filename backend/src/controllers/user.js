@@ -7,6 +7,7 @@ import { computeSajuSignature } from '../services/sajuSignature.js';
 import { analyzeSajuWithChatGPT } from '../services/chatgptSajuAnalyzer.js';
 import { isOpenAIAvailable } from '../services/openaiClient.js';
 import { config } from '../config/index.js';
+import { generateFromProfile } from '../services/lifeProfileGenerator.js';
 
 export const userController = {
   async getInternalUserId(supabaseId) {
@@ -268,6 +269,24 @@ export const userController = {
                     updatedAt: new Date(),
                   })
                   .where(eq(sajuAnalyses.id, analysisId));
+                try {
+                  const profileForLp = await db.query.profiles.findFirst({ where: eq(profiles.id, saved.id) });
+                  if (profileForLp) {
+                    const lpData = generateFromProfile(profileForLp, { sajuAnalysis: result.analysis });
+                    const existingLp = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, internalId) });
+                    if (existingLp) {
+                      await db.update(lifeProfiles)
+                        .set({ ...lpData, createdAt: undefined, updatedAt: new Date() })
+                        .where(eq(lifeProfiles.userId, internalId));
+                    } else {
+                      await db.insert(lifeProfiles).values(lpData);
+                    }
+                  }
+                } catch (lpErr) {
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.warn('[saveProfile] Life profile refresh after saju analysis failed:', lpErr.message);
+                  }
+                }
               } else {
                 await db.update(sajuAnalyses)
                   .set({
@@ -413,6 +432,21 @@ export const userController = {
                 updatedAt: new Date(),
               })
               .where(eq(sajuAnalyses.id, analysisId));
+            try {
+              const lpData = generateFromProfile(profile, { sajuAnalysis: result.analysis });
+              const existingLp = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, internalId) });
+              if (existingLp) {
+                await db.update(lifeProfiles)
+                  .set({ ...lpData, createdAt: undefined, updatedAt: new Date() })
+                  .where(eq(lifeProfiles.userId, internalId));
+              } else {
+                await db.insert(lifeProfiles).values(lpData);
+              }
+            } catch (lpErr) {
+              if (process.env.NODE_ENV !== 'production') {
+                console.warn('[generateSajuAnalysis] Life profile refresh failed:', lpErr.message);
+              }
+            }
           } else {
             await db.update(sajuAnalyses)
               .set({

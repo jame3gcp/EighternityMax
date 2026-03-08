@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { recordApi, reportApi } from '@/services/api'
 import { useUserStore } from '@/store/useUserStore'
@@ -104,7 +104,19 @@ const Record: React.FC = () => {
     return emojiOptions[4]
   }
 
-  const chartData = records
+  /** 날짜당 최신 1건만 사용 (당일 최종 입력값 일관 표시) */
+  const recordsOnePerDay = useMemo(() => {
+    const byDate = new Map<string, RecordType>()
+    const sorted = [...records].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    for (const r of sorted) {
+      if (!byDate.has(r.date)) byDate.set(r.date, r)
+    }
+    return Array.from(byDate.values()).sort(
+      (a, b) => b.date.localeCompare(a.date) || (b.timestamp || 0) - (a.timestamp || 0)
+    )
+  }, [records])
+
+  const chartData = recordsOnePerDay
     .slice()
     .reverse()
     .slice(-14)
@@ -227,7 +239,7 @@ const Record: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                에너지: {energyValue} {getEmojiForValue(energyValue).emoji}
+                ⚡ 에너지: {energyValue} {getEmojiForValue(energyValue).emoji}
               </label>
               <input
                 type="range"
@@ -241,7 +253,7 @@ const Record: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                감정: {emotionValue} {getEmojiForValue(emotionValue).emoji}
+                💭 감정: {emotionValue} {getEmojiForValue(emotionValue).emoji}
               </label>
               <input
                 type="range"
@@ -255,7 +267,7 @@ const Record: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                집중도: {focusValue} {getEmojiForValue(focusValue).emoji}
+                🎯 집중도: {focusValue} {getEmojiForValue(focusValue).emoji}
               </label>
               <input
                 type="range"
@@ -305,8 +317,8 @@ const Record: React.FC = () => {
       <Card className="mt-6">
         <h2 className="text-xl font-bold mb-4">기록 타임라인</h2>
         <div className="space-y-4">
-          {records.length > 0 ? (
-            records.slice(0, 10).map((record) => (
+          {recordsOnePerDay.length > 0 ? (
+            recordsOnePerDay.slice(0, 10).map((record) => (
               <div
                 key={record.id}
                 className="flex items-start space-x-4 p-4 border-l-4 border-primary rounded bg-gray-50 dark:bg-gray-700"

@@ -1,6 +1,6 @@
 import { db } from '../models/db.js';
-import { lifeProfiles, profiles, jobs } from '../models/schema.js';
-import { eq } from 'drizzle-orm';
+import { lifeProfiles, profiles, jobs, sajuAnalyses } from '../models/schema.js';
+import { eq, and, desc } from 'drizzle-orm';
 import { ApiError } from '../middleware/error.js';
 import { userController } from './user.js';
 import { generateFromProfile } from '../services/lifeProfileGenerator.js';
@@ -29,7 +29,19 @@ export const lifeProfileController = {
       });
 
       setTimeout(async () => {
-        const lpData = generateFromProfile(profile);
+        let sajuAnalysisPayload = null;
+        const doneRows = await db.query.sajuAnalyses.findMany({
+          where: and(
+            eq(sajuAnalyses.profileId, profile_id),
+            eq(sajuAnalyses.status, 'done')
+          ),
+          orderBy: [desc(sajuAnalyses.updatedAt)],
+          limit: 1,
+        });
+        if (doneRows[0]?.analysis) {
+          sajuAnalysisPayload = doneRows[0].analysis;
+        }
+        const lpData = generateFromProfile(profile, { sajuAnalysis: sajuAnalysisPayload });
 
         await db.transaction(async (tx) => {
           const existing = await tx.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, internalId) });
@@ -96,6 +108,10 @@ export const lifeProfileController = {
           cycleDescription: lp.cycleDescription,
           recommendations: lp.recommendations,
           version: lp.version,
+          energyElements: lp.energyElements ?? undefined,
+          energyTraits: lp.energyTraits ?? undefined,
+          energyBlueprint: lp.energyBlueprint ?? undefined,
+          insightsSummary: lp.insightsSummary ?? undefined,
           createdAt: lp.createdAt,
           updatedAt: lp.updatedAt,
         },

@@ -5,5 +5,6 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 
 router.get('/', authenticate, cycleController.getCycle);
+router.get('/interpretation/:phaseId', authenticate, cycleController.getInterpretation);
 
 export default router;

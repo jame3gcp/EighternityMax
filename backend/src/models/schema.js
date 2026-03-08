@@ -148,6 +148,14 @@ export const lifeProfiles = pgTable('life_profiles', {
   cycleDescription: text('cycle_description'),
   recommendations: jsonb('recommendations'),
   version: text('version'),
+  /** 5 Energy Elements (오행 기반) */
+  energyElements: jsonb('energy_elements'),
+  /** 에너지 특성 6가지 (십성·AI 기반) */
+  energyTraits: jsonb('energy_traits'),
+  /** 에너지 청사진 (coreType, timeAxis, balance) */
+  energyBlueprint: jsonb('energy_blueprint'),
+  /** 종합분석 요약·인사이트 (AI/오행 기반) */
+  insightsSummary: text('insights_summary'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

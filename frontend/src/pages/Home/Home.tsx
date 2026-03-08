@@ -13,12 +13,23 @@ import { useIntersectionObserver } from '@/hooks/useIntersectionObserver'
 import { dailyGuideApi } from '@/services/api'
 import type { DailyGuide } from '@/types'
 
+const HERO_KEYWORD_MAX_LENGTH = 80
+
+function getOneLineKeyword(summary: string | undefined): string {
+  if (!summary?.trim()) return ''
+  const trimmed = summary.trim()
+  const firstSentence = trimmed.split(/[.!?]\s/)[0]?.trim() || trimmed
+  if (firstSentence.length <= HERO_KEYWORD_MAX_LENGTH) return firstSentence
+  return firstSentence.slice(0, HERO_KEYWORD_MAX_LENGTH) + '…'
+}
+
 const Home: React.FC = () => {
   const navigate = useNavigate()
   const { currentCycle, fetchCycle, isLoading } = useCycleStore()
   const { user } = useUserStore()
   const { lifeProfile, fetchLifeProfile, isLoading: isLoadingLifeProfile, error: lifeProfileError } = useLifeProfileStore()
   const [dailyGuide, setDailyGuide] = useState<DailyGuide | null>(null)
+  const [isLoadingDailyGuide, setIsLoadingDailyGuide] = useState(true)
   const [isLifeProfileExpanded, setIsLifeProfileExpanded] = useState(() => {
     const hasSeen = localStorage.getItem('hasSeenLifeProfileSummary')
     return !hasSeen // 첫 방문 시 true
@@ -34,13 +45,15 @@ const Home: React.FC = () => {
   }, [currentCycle, fetchCycle])
 
   useEffect(() => {
-    // Daily Guide 로드
     const loadDailyGuide = async () => {
+      setIsLoadingDailyGuide(true)
       try {
         const guide = await dailyGuideApi.getDailyGuide()
         setDailyGuide(guide)
       } catch (error) {
         console.error('Failed to load daily guide:', error)
+      } finally {
+        setIsLoadingDailyGuide(false)
       }
     }
     loadDailyGuide()
@@ -97,14 +110,62 @@ const Home: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-4"
       >
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           {user ? `${user.name}님, 안녕하세요!` : 'Eighternity에 오신 것을 환영합니다'}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          오늘의 기운 사이클을 확인하고 최적의 하루를 계획하세요.
+          오늘의 요약을 확인하세요.
         </p>
+      </motion.div>
+
+      {/* 히어로: 요약 점수 + 한 줄 핵심 키워드 (가이드라인) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-8"
+        role="region"
+        aria-label="오늘의 에너지 요약"
+      >
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">오늘의 에너지 점수</span>
+              {isLoadingDailyGuide ? (
+                <span className="text-4xl font-bold text-primary tabular-nums" aria-hidden>—</span>
+              ) : dailyGuide != null ? (
+                <span className="text-4xl font-bold text-primary tabular-nums" aria-label={`에너지 점수 ${dailyGuide.energy_index}`}>
+                  {dailyGuide.energy_index}
+                </span>
+              ) : (
+                <span className="text-4xl font-bold text-gray-400 dark:text-gray-500 tabular-nums">—</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              {isLoadingDailyGuide ? (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">오늘의 가이드를 불러오는 중…</p>
+              ) : (() => {
+                const keyword = getOneLineKeyword(dailyGuide?.summary)
+                let fallback: string
+                if (dailyGuide == null) {
+                  fallback = '데일리 가이드에서 오늘의 지침을 확인하세요.'
+                } else if (lifeProfile?.energyBlueprint?.coreType?.korean) {
+                  fallback = `${lifeProfile.energyBlueprint.coreType.korean} 유형의 오늘`
+                } else {
+                  fallback = '오늘의 요약을 확인해 보세요.'
+                }
+                const displayKeyword = keyword || fallback
+                return (
+                  <p className="text-lg font-medium text-gray-800 dark:text-gray-200 truncate sm:whitespace-normal sm:truncate-none" title={displayKeyword}>
+                    {displayKeyword}
+                  </p>
+                )
+              })()}
+            </div>
+          </div>
+        </Card>
       </motion.div>
 
       {/* Life Profile 요약 (첫 방문 시 강조) */}
@@ -117,9 +178,9 @@ const Home: React.FC = () => {
           <Card className={isLifeProfileExpanded ? 'border-2 border-primary' : ''}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold">당신의 에너지 프로필</h2>
+                <h2 className="text-xl font-bold">나의 설계도 (Life Profile)</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  AI가 분석한 개인 에너지 특성입니다
+                  타고난 기질, 강점, 현대적 페르소나 분석
                 </p>
               </div>
               <Button
@@ -222,21 +283,21 @@ const Home: React.FC = () => {
                 value={currentPhase.energy}
                 icon="⚡"
                 color="green"
-                trend="stable"
+                trend={currentCycle?.trends?.energy ?? 'stable'}
               />
               <StatusCard
                 title="감정"
                 value={currentPhase.emotion}
                 icon="💭"
                 color="yellow"
-                trend="up"
+                trend={currentCycle?.trends?.emotion ?? 'stable'}
               />
               <StatusCard
                 title="집중도"
                 value={currentPhase.focus}
                 icon="🎯"
                 color="orange"
-                trend="stable"
+                trend={currentCycle?.trends?.focus ?? 'stable'}
               />
             </div>
           )}

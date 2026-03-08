@@ -1,0 +1,8 @@
+{
+  "name": "eighternity-max",
+  "private": true,
+  "scripts": {
+    "saju-collect-reference": "cd backend && npm run saju-collect-reference",
+    "saju-verify-dataset": "cd backend && npm run saju-verify-dataset"
+  }
+}

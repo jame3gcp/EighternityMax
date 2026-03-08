@@ -83,6 +83,14 @@ const getEnergyElementForGame = (gameId: string, lifeProfile?: any) => {
 
 const todayDateString = () => new Date().toISOString().split('T')[0]
 
+/** API/저장 이슈로 음수나 범위 밖 값이 와도 표시는 1~max로 보정 (로또 45, 일반 99) */
+function clampLuckyNumbers(numbers: number[], type: 'lotto' | 'normal' = 'lotto'): number[] {
+  const max = type === 'lotto' ? 45 : 99
+  return numbers.map((n) =>
+    typeof n === 'number' && !Number.isNaN(n) ? Math.max(1, Math.min(max, Math.round(n))) : 1
+  )
+}
+
 const LuckyHub: React.FC = () => {
   const { lifeProfile, fetchLifeProfile } = useLifeProfileStore()
   const [luckyNumbers, setLuckyNumbers] = useState<number[]>([])
@@ -123,7 +131,7 @@ const LuckyHub: React.FC = () => {
           setLuckyNumbers([])
           setAlreadyGeneratedToday(false)
         } else {
-          setLuckyNumbers(data.numbers)
+          setLuckyNumbers(clampLuckyNumbers(data.numbers ?? [], data.type === 'normal' ? 'normal' : 'lotto'))
           setAlreadyGeneratedToday(!!data.alreadyGeneratedToday)
         }
       } else {
@@ -156,7 +164,7 @@ const LuckyHub: React.FC = () => {
     try {
       setIsLoading(true)
       const data = await luckyApi.generateLuckyNumbers('lotto')
-      setLuckyNumbers(data.numbers)
+      setLuckyNumbers(clampLuckyNumbers(data.numbers ?? [], 'lotto'))
       setAlreadyGeneratedToday(data.alreadyGeneratedToday)
       if (data.alreadyGeneratedToday) {
         alert('오늘 이미 행운 번호를 생성했습니다. 내일 다시 시도해 주세요.')
@@ -324,7 +332,7 @@ const LuckyHub: React.FC = () => {
                         {item.date === todayDateString() ? '오늘' : item.date}
                       </span>
                       <span className="flex gap-1.5 flex-wrap">
-                        {item.numbers.map((n, i) => (
+                        {(item.type === 'normal' ? clampLuckyNumbers(item.numbers ?? [], 'normal') : clampLuckyNumbers(item.numbers ?? [], 'lotto')).map((n, i) => (
                           <span
                             key={i}
                             className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/20 text-primary dark:bg-primary/30 dark:text-primary font-medium"

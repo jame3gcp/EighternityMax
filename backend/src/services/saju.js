@@ -89,6 +89,55 @@ export function getDaeunSinsalByGapja(gapjaZh) {
 // 월덕귀인(天乙贵人): 甲戊丑未 乙己子申 丙丁亥酉 庚辛寅午 壬癸卯巳 → 일간 인덱스 → [지지 인덱스]
 const GWEEIN_BRANCHES = [[1, 7], [0, 8], [11, 9], [11, 9], [1, 7], [0, 8], [2, 6], [2, 6], [3, 5], [3, 5]];
 
+/**
+ * 입춘(立春)일 — 해당 연도 2월의 몇 일인지 (3~5). 근사: [Y*0.2422+C]-L, 21세기 C=3.87
+ * @param {number} year - 서기 연도
+ * @returns {number} 2월 일(3, 4, 5)
+ */
+function getLichunDay(year) {
+  if (!Number.isFinite(year) || year < 1900 || year > 2100) return 4;
+  const Y = year % 100;
+  const C = year >= 2000 ? 3.87 : 4.63; // 21세기 / 20세기 근사
+  const L = Math.floor((Y - 1) / 4);
+  const d = Math.floor(Y * 0.2422 + C) - L;
+  return Math.max(3, Math.min(5, d));
+}
+
+/**
+ * 절기(节气) 기준 월지 인덱스 (0=子…11=亥). 寅月=立春~惊蛰, 丑月=小寒~立春 등
+ * 경계는 공历 대략일 사용 (立春은 getLichunDay 사용)
+ */
+function getSolarTermMonthBranch(year, month, day) {
+  const lichun = getLichunDay(year);
+  const d = day || 1;
+  if (month === 1) {
+    if (d >= 6) return 1; // 小寒~ 丑月
+    return 0; // 子月 (12월절기~1/5)
+  }
+  if (month === 2) {
+    if (d < lichun) return 1; // 丑月
+    return 2; // 寅月
+  }
+  if (month === 3) return d < 5 ? 2 : 3; // 惊蛰 3/5
+  if (month === 4) return d < 5 ? 3 : 4; // 清明 4/5 (참조: 4/4=卯月)
+  if (month === 5) return d < 5 ? 4 : 5; // 立夏 5/5
+  if (month === 6) return d < 5 ? 5 : 6; // 芒种 6/5
+  if (month === 7) return d < 7 ? 6 : 7; // 小暑 7/7
+  if (month === 8) return d < 7 ? 7 : 8; // 立秋 8/7
+  if (month === 9) return d < 7 ? 8 : 9; // 白露 9/7
+  if (month === 10) return d < 8 ? 9 : 10; // 寒露 10/8
+  if (month === 11) return d < 7 ? 10 : 11; // 立冬 11/7
+  if (month === 12) return d < 7 ? 11 : 0; // 大雪 12/7 → 子月
+  return 2;
+}
+
+/** 입춘 이전이면 연도를 전년으로 쓸지 여부 (참조 사이트와 동일: 立春換年) */
+function isBeforeLichun(year, month, day) {
+  if (month < 2) return true;
+  if (month > 2) return false;
+  return (day || 1) < getLichunDay(year);
+}
+
 /** 60甲子 인덱스(0-59) from (stemIdx, branchIdx) */
 function pillarTo60(stemIdx, branchIdx) {
   if (stemIdx == null || branchIdx == null) return null;
@@ -535,7 +584,7 @@ export function enrichSajuWithResults(saju) {
           const sipseongJi = jiStemIdx != null ? sipseongIndex(dayStemIdx, jiStemIdx) : null;
           const sinsalName = SEUN_SINSAL_BY_BRANCH[p.branchIdx] ?? null; // 大运地支 기준 (참조: 流年과 동일)
           daeunSteps.push({
-            age: [7, 17, 27, 37, 47, 57, 67, 77, 87, 97][step],
+            age: [8, 18, 28, 38, 48, 58, 68, 78, 88, 98][step], // 참조(beta-ybz6)와 동일: 대운나이 8·18·28…세
             gapja: `${CHEONGAN_ZH[p.stemIdx]}${JIJI_ZH[p.branchIdx]}`,
             gapjaKo: `${CHEONGAN_KO[p.stemIdx]}${JIJI_KO[p.branchIdx]}`,
             sipseong: stemSi != null ? { ko: SIPEONG_KO[stemSi], zh: SIPEONG_ZH[stemSi] } : null,
@@ -579,13 +628,12 @@ export function enrichSajuWithResults(saju) {
       }
     }
     saju.seun = seunYears;
-    // 월운(流月): 당해년(현재 연도, 한국 기준) 五虎遁, 양력 1월=丑月 … 12월=子月
-    // 1월은 입춘 전이므로 전년(干支)의 丑月 → 1월만 전년 年干으로 月干 계산
-    const yuezhiByMonth = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0]; // 1월→丑 … 12월→子
+    // 월운(流月): 참조(beta-ybz6)와 동일 — 1月=子, 2月=亥, …, 12月=丑 (역순 月建, 五虎遁 당해년)
+    const yuezhiByMonth = [0, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]; // 1월→子 2월→亥 … 12월→丑
     const woleun = [];
     for (let m = 0; m < 12; m++) {
-      const b = yuezhiByMonth[m]; // 月支 (丑寅卯…子)
-      const yearForMonth = m === 0 ? currentYearKorea - 1 : currentYearKorea;
+      const b = yuezhiByMonth[m]; // 月支 (子亥戌…丑)
+      const yearForMonth = m === 11 ? currentYearKorea - 1 : currentYearKorea;
       const i60Woleun = ((yearForMonth - 4) % 60 + 60) % 60;
       const yearStemForMonth = i60Woleun % 10;
       const yueganFirst = [2, 4, 6, 8, 0][yearStemForMonth % 5]; // 寅月天干 (五虎遁)
@@ -614,18 +662,21 @@ export function enrichSajuWithResults(saju) {
 /**
  * 시주(時柱) 계산: 일간(日干) + 출생시각 → 시천간·시지
  * 日上起时: 甲己日 甲子时, 乙庚日 丙子时, 丙辛日 戊子时, 丁壬日 庚子时, 戊癸日 壬子时
- * 시지(참조 만세력): 子0-1 丑2-3 寅4-5 … 亥22-23 (branchIdx = floor(hour/2))
+ * 시지(참조 beta-ybz6): 时辰을 정시(整点) 기준 — 0~1시=子, 2~3시=丑, …, 22~23시=亥 (01:00=子, 23:00=亥 등)
  */
 function computeHourPillar(dayPillar, birthTime) {
   if (!dayPillar || !birthTime || !/^\d{1,2}:\d{2}$/.test(birthTime.trim())) return null;
   const dayStemIdx = getDayStemIndex(dayPillar);
   if (dayStemIdx == null) return null;
-  const [hStr] = birthTime.trim().split(':');
+  const [hStr, mStr] = birthTime.trim().split(':');
   const hour = parseInt(hStr, 10);
+  const minute = typeof mStr === 'string' && mStr.length ? parseInt(mStr, 10) : 0;
   if (Number.isNaN(hour) || hour < 0 || hour > 23) return null;
 
-  // 시지: 참조(만세력) 기준 0~1시=子, 2~3시=丑, … 22~23시=亥 (branchIdx = floor(hour/2))
-  const branchIdx = Math.floor(hour / 2);
+  // 참조(beta-ybz6): 30분 미만이면 해당 정시 구간, 30분 이상이면 다음 시진. 01:00=子, 03:30=寅, 15:45=申
+  const next = (Number.isNaN(minute) ? 0 : Math.max(0, Math.min(59, minute))) >= 30;
+  const h = next && hour < 23 ? hour + 1 : next && hour === 23 ? 0 : hour;
+  const branchIdx = Math.floor(h / 2) % 12;
   const ziStemIdx = [0, 2, 4, 6, 8][dayStemIdx % 5];
   const hourStemIdx = (ziStemIdx + branchIdx) % 10;
 
@@ -639,6 +690,7 @@ function computeHourPillar(dayPillar, birthTime) {
 
 /**
  * 양력 생년월일(·시간)·성별을 만세력(음력, 사주4주)으로 변환
+ * 연·월 간지는 korean-lunar-calendar 기준(절기/立春換年 아님). 참조 사이트와 입춘 전후에 차이 가능 → docs/SAJU_VERIFY_README.md
  * @param {string} birthDate - YYYY-MM-DD
  * @param {string} [birthTime] - HH:mm (시주 계산용)
  * @param {string} [gender] - M|F|X (성별, 대운 등 활용)
@@ -664,6 +716,22 @@ export function solarToSaju(birthDate, birthTime, gender) {
     const gapjaKorean = calendar.getKoreanGapja();
     const gapjaChinese = calendar.getChineseGapja();
 
+    // 참조(beta-ybz6)와 동일: 立春換年·节气換月 적용
+    const lichunYear = isBeforeLichun(year, month, day) ? year - 1 : year;
+    const calForYear = new KoreanLunarCalendar();
+    calForYear.setSolarDate(lichunYear, 7, 1);
+    const gapjaLichunYear = calForYear.getChineseGapja() || calForYear.getKoreanGapja();
+    const yearPillarZh = gapjaLichunYear?.year ? String(gapjaLichunYear.year).replace(/[年月日时時]$/, '').trim() : null;
+    const yearStemIdx = yearPillarZh && yearPillarZh.length >= 1 ? CHEONGAN_ZH.indexOf(yearPillarZh.charAt(0)) : -1;
+    const yearBranchIdx = yearPillarZh && yearPillarZh.length >= 2 ? JIJI_ZH.indexOf(yearPillarZh.charAt(1)) : -1;
+    const monthBranchIdx = getSolarTermMonthBranch(year, month, day);
+    const yueganFirst = [2, 4, 6, 8, 0][(yearStemIdx >= 0 ? yearStemIdx : 0) % 5]; // 五虎遁 寅月天干
+    const monthStemIdx = (yueganFirst + (monthBranchIdx - 2 + 12) % 12) % 10;
+    const overrideYearKo = yearStemIdx >= 0 && yearBranchIdx >= 0 ? `${CHEONGAN_KO[yearStemIdx]}${JIJI_KO[yearBranchIdx]}년` : null;
+    const overrideYearZh = yearStemIdx >= 0 && yearBranchIdx >= 0 ? `${CHEONGAN_ZH[yearStemIdx]}${JIJI_ZH[yearBranchIdx]}年` : null;
+    const overrideMonthKo = monthStemIdx >= 0 ? `${CHEONGAN_KO[monthStemIdx]}${JIJI_KO[monthBranchIdx]}월` : null;
+    const overrideMonthZh = monthStemIdx >= 0 ? `${CHEONGAN_ZH[monthStemIdx]}${JIJI_ZH[monthBranchIdx]}月` : null;
+
     const saju = {
       solar: { year, month, day },
       lunar: {
@@ -674,16 +742,16 @@ export function solarToSaju(birthDate, birthTime, gender) {
       },
       gapjaKorean: gapjaKorean
         ? {
-            year: gapjaKorean.year,
-            month: gapjaKorean.month,
+            year: overrideYearKo ?? gapjaKorean.year,
+            month: overrideMonthKo ?? gapjaKorean.month,
             day: gapjaKorean.day,
             intercalation: gapjaKorean.intercalation || '',
           }
         : null,
       gapjaChinese: gapjaChinese
         ? {
-            year: gapjaChinese.year,
-            month: gapjaChinese.month,
+            year: overrideYearZh ?? gapjaChinese.year,
+            month: overrideMonthZh ?? gapjaChinese.month,
             day: gapjaChinese.day,
             intercalation: gapjaChinese.intercalation || '',
           }
@@ -740,6 +808,25 @@ export function lunarToSaju(birthDate, isIntercalation = false, birthTime, gende
     const gapjaKorean = calendar.getKoreanGapja();
     const gapjaChinese = calendar.getChineseGapja();
 
+    // 참조와 동일: 양력 변환일 기준 立春換年·节气換月 적용
+    const sy = solar?.year ?? year;
+    const sm = solar?.month ?? month;
+    const sd = solar?.day ?? day;
+    const lichunYearL = isBeforeLichun(sy, sm, sd) ? sy - 1 : sy;
+    const calForYearL = new KoreanLunarCalendar();
+    calForYearL.setSolarDate(lichunYearL, 7, 1);
+    const gapjaLichunYearL = calForYearL.getChineseGapja() || calForYearL.getKoreanGapja();
+    const yearPillarZhL = gapjaLichunYearL?.year ? String(gapjaLichunYearL.year).replace(/[年月日时時]$/, '').trim() : null;
+    const yearStemIdxL = yearPillarZhL && yearPillarZhL.length >= 1 ? CHEONGAN_ZH.indexOf(yearPillarZhL.charAt(0)) : -1;
+    const yearBranchIdxL = yearPillarZhL && yearPillarZhL.length >= 2 ? JIJI_ZH.indexOf(yearPillarZhL.charAt(1)) : -1;
+    const monthBranchIdxL = getSolarTermMonthBranch(sy, sm, sd);
+    const yueganFirstL = [2, 4, 6, 8, 0][(yearStemIdxL >= 0 ? yearStemIdxL : 0) % 5];
+    const monthStemIdxL = (yueganFirstL + (monthBranchIdxL - 2 + 12) % 12) % 10;
+    const overrideYearKoL = yearStemIdxL >= 0 && yearBranchIdxL >= 0 ? `${CHEONGAN_KO[yearStemIdxL]}${JIJI_KO[yearBranchIdxL]}년` : null;
+    const overrideYearZhL = yearStemIdxL >= 0 && yearBranchIdxL >= 0 ? `${CHEONGAN_ZH[yearStemIdxL]}${JIJI_ZH[yearBranchIdxL]}年` : null;
+    const overrideMonthKoL = monthStemIdxL >= 0 ? `${CHEONGAN_KO[monthStemIdxL]}${JIJI_KO[monthBranchIdxL]}월` : null;
+    const overrideMonthZhL = monthStemIdxL >= 0 ? `${CHEONGAN_ZH[monthStemIdxL]}${JIJI_ZH[monthBranchIdxL]}月` : null;
+
     const saju = {
       solar: solar ? { year: solar.year, month: solar.month, day: solar.day } : null,
       lunar: {
@@ -750,16 +837,16 @@ export function lunarToSaju(birthDate, isIntercalation = false, birthTime, gende
       },
       gapjaKorean: gapjaKorean
         ? {
-            year: gapjaKorean.year,
-            month: gapjaKorean.month,
+            year: overrideYearKoL ?? gapjaKorean.year,
+            month: overrideMonthKoL ?? gapjaKorean.month,
             day: gapjaKorean.day,
             intercalation: gapjaKorean.intercalation || (isIntercalation ? '윤월' : ''),
           }
         : null,
       gapjaChinese: gapjaChinese
         ? {
-            year: gapjaChinese.year,
-            month: gapjaChinese.month,
+            year: overrideYearZhL ?? gapjaChinese.year,
+            month: overrideMonthZhL ?? gapjaChinese.month,
             day: gapjaChinese.day,
             intercalation: gapjaChinese.intercalation || (isIntercalation ? '閏月' : ''),
           }
