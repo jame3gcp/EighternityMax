@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { analyticsApi } from '@/services/api'
+import { analyticsApi, TokenManager } from '@/services/api'
 
 export const useActivityTracker = () => {
   const location = useLocation()
@@ -13,7 +13,7 @@ export const useActivityTracker = () => {
       const durationMs = endTime - startTimeRef.current
       const path = prevPathRef.current
 
-      if (durationMs > 1000) {
+      if (durationMs > 1000 && TokenManager.getAccessToken()) {
         analyticsApi.logActivity({
           type: 'page_view',
           path,
@@ -32,6 +32,7 @@ export const useActivityTracker = () => {
     handleRouteChange()
 
     const handleUnload = () => {
+      if (!TokenManager.getAccessToken()) return
       const endTime = Date.now()
       const durationMs = endTime - startTimeRef.current
       const path = location.pathname

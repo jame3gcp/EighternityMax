@@ -78,7 +78,7 @@ function sajuToPromptSummary(saju) {
   }
   if (saju.daeun?.steps?.length) {
     const stepLines = saju.daeun.steps.map((x, i) => {
-      const age = x.age ?? [7, 17, 27, 37, 47, 57, 67, 77, 87, 97][i];
+      const age = x.age ?? [8, 18, 28, 38, 48, 58, 68, 78, 88, 98][i];
       const g = x.gapjaKo || x.gapja;
       const sp = x.sipseong?.ko ?? '';
       const ss = x.sinsal ?? '';

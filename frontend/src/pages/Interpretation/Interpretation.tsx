@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCycleStore } from '@/store/useCycleStore'
 import { cycleApi } from '@/services/api'
 import Card from '@/components/Card/Card'
@@ -102,6 +103,13 @@ const Interpretation: React.FC = () => {
         </p>
       </div>
 
+      {interpretation.periodSummary && (
+        <div className="mb-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">오늘의 흐름 요약</h3>
+          <p className="text-gray-800 dark:text-gray-200">{interpretation.periodSummary}</p>
+        </div>
+      )}
+
       <Card id="interpretation-card" className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold" style={{ color: currentPhase.color }}>
@@ -116,6 +124,18 @@ const Interpretation: React.FC = () => {
           <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
             {interpretation.description}
           </p>
+          {interpretation.energyTraitSummary && (
+            <p className="text-gray-600 dark:text-gray-400 mt-3 text-base">
+              {interpretation.energyTraitSummary}
+            </p>
+          )}
+          {interpretation.personalization && (
+            <div className="mt-4 p-3 rounded-lg bg-primary/10 dark:bg-primary/20 border border-primary/20">
+              <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
+                {interpretation.personalization}
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -145,10 +165,13 @@ const Interpretation: React.FC = () => {
           transition={{ duration: 0.3 }}
           className="overflow-hidden"
         >
-          <ul className="mt-4 space-y-2 list-disc list-inside text-gray-700 dark:text-gray-300">
-            {interpretation.recommendations.map((rec, index) => (
+          <ul className="mt-4 space-y-3 list-disc list-inside text-gray-700 dark:text-gray-300">
+            {(interpretation.recommendationItems ?? interpretation.recommendations.map((text) => ({ text }))).map((item, index) => (
               <li key={index} className="leading-relaxed">
-                <span className="font-medium text-energy-green">{rec}</span>
+                <span className="font-medium text-energy-green">{item.text}</span>
+                {item.reason && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 ml-4">왜: {item.reason}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -181,10 +204,13 @@ const Interpretation: React.FC = () => {
           transition={{ duration: 0.3 }}
           className="overflow-hidden"
         >
-          <ul className="mt-4 space-y-2 list-disc list-inside text-gray-700 dark:text-gray-300">
-            {interpretation.warnings.map((warning, index) => (
+          <ul className="mt-4 space-y-3 list-disc list-inside text-gray-700 dark:text-gray-300">
+            {(interpretation.warningItems ?? interpretation.warnings.map((text) => ({ text }))).map((item, index) => (
               <li key={index} className="leading-relaxed">
-                <span className="font-medium text-status-warning">{warning}</span>
+                <span className="font-medium text-status-warning">{item.text}</span>
+                {item.reason && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 ml-4">왜: {item.reason}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -194,13 +220,41 @@ const Interpretation: React.FC = () => {
       {/* 다음 단계 예측 */}
       <Card>
         <h3 className="text-xl font-semibold mb-4">다음 단계 예측</h3>
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
           <p className="text-gray-700 dark:text-gray-300">
             다음 단계는 <span className="font-bold">{interpretation.nextPhaseName}</span>입니다.
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            다음 단계로의 전환을 준비하세요.
-          </p>
+          {interpretation.nextPhaseDescription && (
+            <p className="text-gray-700 dark:text-gray-300">
+              {interpretation.nextPhaseDescription}
+            </p>
+          )}
+          {interpretation.nextPhaseTransitionHint && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {interpretation.nextPhaseTransitionHint}
+            </p>
+          )}
+          {!interpretation.nextPhaseDescription && !interpretation.nextPhaseTransitionHint && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              다음 단계로의 전환을 준비하세요.
+            </p>
+          )}
+        </div>
+      </Card>
+
+      {/* 인생 방향·데일리 가이드 연동 */}
+      <Card className="mt-4">
+        <h3 className="text-xl font-semibold mb-3">함께 보면 좋아요</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+          지금 단계에서는 인생 방향의 커리어·관계·재물 영역이나 오늘의 데일리 가이드와 함께 보시면 더 효과적입니다.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/life-directions">
+            <Button variant="outline" size="sm">인생 방향 보기</Button>
+          </Link>
+          <Link to="/daily-guide">
+            <Button variant="outline" size="sm">데일리 가이드 보기</Button>
+          </Link>
         </div>
       </Card>
     </div>

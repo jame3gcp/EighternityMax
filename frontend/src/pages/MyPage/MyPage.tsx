@@ -755,7 +755,7 @@ const MyPage: React.FC = () => {
                   <tbody>
                     {profile.saju?.daeun?.steps.map((s: { age?: number; gapjaKo: string; gapja: string; sipseong?: { ko: string } | null; sipseongJi?: { ko: string } | null; sinsal?: string | null; unseong12?: { ko: string } | null }, i: number) => (
                       <tr key={i} className="border-t border-gray-200 dark:border-gray-600">
-                        <td className="px-3 py-2">{s.age ?? [7, 17, 27, 37, 47, 57, 67, 77, 87, 97][i]}세</td>
+                        <td className="px-3 py-2">{[8, 18, 28, 38, 48, 58, 68, 78, 88, 98][i]}세</td>
                         <td className="px-3 py-2 font-mono">{s.gapjaKo} ({s.gapja})</td>
                         <td className="px-3 py-2">{s.sipseong?.ko ?? '-'}</td>
                         <td className="px-3 py-2">{s.sipseongJi?.ko ?? '-'}</td>

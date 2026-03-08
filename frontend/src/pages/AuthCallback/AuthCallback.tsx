@@ -6,7 +6,7 @@ import { getRedirectPath } from '@/components/ProtectedRoute/ProtectedRoute'
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate()
-  const { setUser } = useUserStore()
+  const { setUser, setPrivacyConsentGiven } = useUserStore()
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -24,6 +24,9 @@ const AuthCallback: React.FC = () => {
             createdAt: Date.now(),
             provider: response.user.provider,
           })
+
+          // 로그인 시마다 서버 기준으로 동의 여부 동기화 (persist된 예전 false로 재로그인 시 온보딩 중복 노출 방지)
+          setPrivacyConsentGiven(!response.consent_required)
 
           // 저장된 리다이렉트 경로 확인
           const redirectPath = getRedirectPath()
@@ -52,21 +55,14 @@ const AuthCallback: React.FC = () => {
         }
       } catch (error) {
         console.error('[AuthCallback Page] 에러:', error)
-        const err = error as Error & { statusCode?: number; statusText?: string }
-        const errorMessage = err?.message ?? '알 수 없는 오류'
-        const statusCode = err?.statusCode
-        const statusText = err?.statusText
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/143e5328-082d-42a3-89a0-aa11798b559d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e42550'},body:JSON.stringify({sessionId:'e42550',location:'AuthCallback.tsx:catch',message:'login error',data:{errorMessage,String_statusCode:String(statusCode),statusText},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
-        // #endregion
-        const detail = statusCode != null ? `\n[HTTP ${statusCode}${statusText ? ` ${statusText}` : ''}]` : ''
-        alert(`로그인 처리 중 오류가 발생했습니다.${detail}\n\n${errorMessage}\n\n콘솔을 확인해주세요.`)
+        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+        alert(`로그인 처리 중 오류가 발생했습니다.\n\n${errorMessage}\n\n콘솔을 확인해주세요.`)
         navigate('/login', { replace: true })
       }
     }
 
     handleCallback()
-  }, [navigate, setUser])
+  }, [navigate, setUser, setPrivacyConsentGiven])
 
   return (
     <div className="flex items-center justify-center min-h-screen">

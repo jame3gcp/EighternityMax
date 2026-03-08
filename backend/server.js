@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import jwt from 'jsonwebtoken'
+import { PHASE_NAMES, PHASE_INTERPRETATIONS } from './src/data/interpretationPhases.js'
 import { generateFromProfile } from './src/services/lifeProfileGenerator.js'
 import { solarToSaju, lunarToSaju } from './src/services/saju.js'
 
@@ -591,35 +592,27 @@ app.get('/api/cycles', (req, res) => {
 
 // ===== 해석 API =====
 app.get('/api/interpretations/:phaseId', (req, res) => {
-  const phaseId = parseInt(req.params.phaseId, 10)
-  const phaseNames = [
-    '새벽 (Dawn)',
-    '상승 (Rising)',
-    '정점 (Peak)',
-    '유지 (Sustained)',
-    '하강 (Declining)',
-    '저점 (Low)',
-    '회복 (Recovery)',
-    '준비 (Preparation)',
-  ]
-
-  const phase = phaseNames[phaseId] || phaseNames[0]
-  const nextPhaseId = (phaseId + 1) % phaseNames.length
-  const nextPhase = phaseNames[nextPhaseId]
+  const phaseId = Math.max(0, Math.min(7, parseInt(req.params.phaseId, 10) || 0))
+  const phase = PHASE_NAMES[phaseId]
+  const nextPhaseId = (phaseId + 1) % PHASE_NAMES.length
+  const nextPhaseName = PHASE_NAMES[nextPhaseId]
+  const content = PHASE_INTERPRETATIONS[phaseId] || PHASE_INTERPRETATIONS[0]
 
   const interpretation = {
     phaseId,
     title: `${phase} 단계 해석`,
-    description: `현재 ${phase} 단계에 있습니다. 이 단계는 사이클의 중요한 전환점입니다.`,
-    recommendations: [
-      '규칙적인 수면 패턴 유지',
-      '적절한 운동과 휴식의 균형',
-      '명상이나 호흡 운동 실천',
-    ],
-    warnings: ['과도한 스트레스 피하기', '충분한 수분 섭취'],
-    nextPhase,
-    nextPhaseId,
+    description: content.description,
+    energyTraitSummary: content.energyTraitSummary,
+    periodSummary: content.periodSummary,
+    recommendations: content.recommendations,
+    warnings: content.warnings,
+    nextPhase: nextPhaseId,
+    nextPhaseName,
+    nextPhaseDescription: content.nextPhaseDescription,
+    nextPhaseTransitionHint: content.nextPhaseTransitionHint,
   }
+  if (content.recommendationItems) interpretation.recommendationItems = content.recommendationItems
+  if (content.warningItems) interpretation.warningItems = content.warningItems
 
   res.json(interpretation)
 })

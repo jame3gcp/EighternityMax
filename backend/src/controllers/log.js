@@ -1,10 +1,11 @@
 import { db } from '../models/db.js';
 import { records } from '../models/schema.js';
-import { eq, desc, like } from 'drizzle-orm';
+import { eq, desc, like, and } from 'drizzle-orm';
 import { ApiError } from '../middleware/error.js';
 import { userController } from './user.js';
 
 export const logController = {
+  /** 당일 기록은 최종 입력값 1건만 유지: 같은 날 있으면 update, 없으면 insert */
   async saveDailyLog(req, res, next) {
     try {
       const { energy, emotion, focus, memo, date } = req.body;
@@ -19,6 +20,22 @@ export const logController = {
       const memoVal = typeof memo === 'string' && memo.length > LOG_MEMO_MAX
         ? memo.slice(0, LOG_MEMO_MAX)
         : (memo || null);
+
+      const existing = await db.query.records.findFirst({
+        where: and(eq(records.userId, internalId), eq(records.date, targetDate)),
+        orderBy: [desc(records.timestamp)],
+      });
+
+      if (existing) {
+        await db.update(records).set({
+          energy,
+          emotion,
+          focus: focus ?? null,
+          memo: memoVal,
+          timestamp: new Date(),
+        }).where(eq(records.id, existing.id));
+        return res.status(200).json({ id: existing.id, status: 'updated' });
+      }
 
       const id = `log-${Date.now()}`;
       await db.insert(records).values({

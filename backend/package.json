@@ -12,8 +12,11 @@
     "db:push": "drizzle-kit push",
     "db:migrate-game-rankings": "node scripts/run-game-rankings-migration.js",
     "db:migrate-consent": "node scripts/migrate-privacy-consent.js",
+    "db:migrate-life-profiles-energy": "node scripts/migrate-life-profiles-energy.js",
     "db:migrate-saju": "node scripts/migrate-saju.js",
     "verify-saju": "node scripts/verify-saju.js",
+    "saju-collect-reference": "node scripts/saju-collect-reference.js",
+    "saju-verify-dataset": "node scripts/saju-verify-against-dataset.js",
     "test": "node test-api.js",
     "audit": "npm audit"
   },
@@ -35,6 +38,7 @@
     "postgres": "^3.4.8"
   },
   "devDependencies": {
+    "playwright": "^1.49.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/pg": "^8.16.0",

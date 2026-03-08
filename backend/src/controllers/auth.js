@@ -41,8 +41,17 @@ export const authController = {
             .where(eq(users.id, localUser.id));
         }
 
-        const profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, localUser.id) });
-        const lifeProfile = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, localUser.id) });
+        let profile, lifeProfile;
+        try {
+          profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, localUser.id) });
+          lifeProfile = await db.query.lifeProfiles.findFirst({ where: eq(lifeProfiles.userId, localUser.id) });
+        } catch (dbErr) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[auth] dev callback DB query error:', dbErr?.message);
+          }
+          profile = undefined;
+          lifeProfile = undefined;
+        }
 
         let nextStep = 'ready';
         if (!profile) nextStep = 'profile_required';

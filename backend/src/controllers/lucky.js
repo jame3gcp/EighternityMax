@@ -32,13 +32,17 @@ async function getCurrentInternalId(req) {
 }
 
 function generateNumbers(internalId, targetDate, type = 'lotto') {
-  const seed = internalId + targetDate;
+  const seed = String(internalId ?? '') + String(targetDate ?? '');
   const seededRandom = (s) => {
     let hash = 0;
     for (let i = 0; i < s.length; i++) hash = (hash << 5) - hash + s.charCodeAt(i);
+    hash = hash >>> 0; // unsigned 32-bit
+    if (hash === 0) hash = 1; // LCG must not start at 0 (would yield negative random)
+    const M = 2147483647;
     return () => {
-      hash = (hash * 16807) % 2147483647;
-      return (hash - 1) / 2147483646;
+      hash = (hash * 16807) % M;
+      if (hash === 0) hash = 1; // avoid 0 -> (0-1)/M-1 is negative
+      return (hash - 1) / (M - 1); // (0, 1]
     };
   };
   const random = seededRandom(seed);
@@ -46,7 +50,8 @@ function generateNumbers(internalId, targetDate, type = 'lotto') {
   const count = type === 'lotto' ? 6 : 5;
   const max = type === 'lotto' ? 45 : 99;
   while (numbers.length < count) {
-    const num = Math.floor(random() * max) + 1;
+    const r = random();
+    const num = Math.min(max, Math.max(1, Math.floor(r * max) + 1));
     if (!numbers.includes(num)) numbers.push(num);
   }
   return numbers.sort((a, b) => a - b);
