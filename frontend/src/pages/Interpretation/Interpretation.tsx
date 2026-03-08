@@ -6,7 +6,7 @@ import Card from '@/components/Card/Card'
 import Button from '@/components/Button/Button'
 import { motion } from 'framer-motion'
 import html2canvas from 'html2canvas'
-import type { Interpretation as InterpretationType } from '@/types'
+import type { Interpretation as InterpretationType, InterpretationItem } from '@/types'
 
 const Interpretation: React.FC = () => {
   const { currentCycle, fetchCycle } = useCycleStore()
@@ -166,7 +166,7 @@ const Interpretation: React.FC = () => {
           className="overflow-hidden"
         >
           <ul className="mt-4 space-y-3 list-disc list-inside text-gray-700 dark:text-gray-300">
-            {(interpretation.recommendationItems ?? interpretation.recommendations.map((text) => ({ text }))).map((item, index) => (
+            {(interpretation.recommendationItems ?? interpretation.recommendations.map((text): InterpretationItem => ({ text }))).map((item, index) => (
               <li key={index} className="leading-relaxed">
                 <span className="font-medium text-energy-green">{item.text}</span>
                 {item.reason && (
@@ -205,7 +205,7 @@ const Interpretation: React.FC = () => {
           className="overflow-hidden"
         >
           <ul className="mt-4 space-y-3 list-disc list-inside text-gray-700 dark:text-gray-300">
-            {(interpretation.warningItems ?? interpretation.warnings.map((text) => ({ text }))).map((item, index) => (
+            {(interpretation.warningItems ?? interpretation.warnings.map((text): InterpretationItem => ({ text }))).map((item, index) => (
               <li key={index} className="leading-relaxed">
                 <span className="font-medium text-status-warning">{item.text}</span>
                 {item.reason && (
